@@ -97,17 +97,28 @@ pub fn paint(painter: &Painter, r: Rect, icon: Icon, c: Color32) {
             painter.add(Shape::line(vec![p(r, 0.35, 0.6), p(r, 0.25, 0.82), p(r, 0.5, 0.6)], s));
         }
         Icon::Blur => {
-            for i in 0..3 {
-                for j in 0..3 {
-                    let a = if (i + j) % 2 == 0 { 255 } else { 110 };
-                    let cc = Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), a);
-                    let cell = Rect::from_min_size(
-                        p(r, 0.2 + i as f32 * 0.2, 0.2 + j as f32 * 0.2),
-                        vec2(r.width() * 0.19, r.height() * 0.19),
-                    );
-                    painter.rect_filled(cell, 0.0, cc);
-                }
+            // a drop: a pointed top running into a round bottom, with a
+            // small highlight inside
+            let tip = p(r, 0.5, 0.1);
+            let cen = p(r, 0.5, 0.62);
+            let rad = r.width() * 0.27;
+            let d = cen.distance(tip);
+            let off = (rad / d).acos();
+            let up = (tip.y - cen.y).atan2(tip.x - cen.x);
+            let (a0, a1) = (up + off, up - off + std::f32::consts::TAU);
+            let mut pts = vec![tip];
+            for i in 0..=32 {
+                let a = a0 + (a1 - a0) * i as f32 / 32.0;
+                pts.push(pos2(cen.x + rad * a.cos(), cen.y + rad * a.sin()));
             }
+            painter.add(Shape::closed_line(pts, s));
+            let hl: Vec<Pos2> = (0..=8)
+                .map(|i| {
+                    let a = (105.0 + i as f32 * 7.5f32).to_radians();
+                    pos2(cen.x + rad * 0.55 * a.cos(), cen.y + rad * 0.55 * a.sin())
+                })
+                .collect();
+            painter.add(Shape::line(hl, Stroke::new(w * 0.9, c)));
         }
         Icon::Crop => {
             painter.add(Shape::line(vec![p(r, 0.3, 0.12), p(r, 0.3, 0.7), p(r, 0.88, 0.7)], s));

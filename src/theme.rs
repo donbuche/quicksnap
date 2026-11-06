@@ -195,7 +195,11 @@ impl Backdrop {
 /// The backdrop seen through a rounded rectangle, as a plain mesh (no edge
 /// feathering, so no light halo appears around dark panels).
 pub fn textured_rounded(r: Rect, radius: f32, b: &Backdrop) -> egui::Shape {
-    let rad = radius.min(r.width() / 2.0).min(r.height() / 2.0);
+    // A mesh has no anti-aliased edge, so it sits 1 point inside the panel's
+    // rounded outline (under its hairline border); otherwise bits of the
+    // backdrop peek out along the corner arcs.
+    let r = r.shrink(1.0);
+    let rad = (radius - 1.0).max(0.0).min(r.width() / 2.0).min(r.height() / 2.0);
     let mut mesh = egui::Mesh::with_texture(b.tex);
     let uv = |p: egui::Pos2| {
         pos2(
@@ -212,8 +216,8 @@ pub fn textured_rounded(r: Rect, radius: f32, b: &Backdrop) -> egui::Shape {
         (pos2(r.min.x + rad, r.min.y + rad), 180.0),
     ];
     for (cc, start) in corners {
-        for i in 0..=8 {
-            let a = (start + i as f32 * 11.25).to_radians();
+        for i in 0..=16 {
+            let a = (start + i as f32 * 5.625).to_radians();
             let p = pos2(cc.x + rad * a.cos(), cc.y + rad * a.sin());
             mesh.vertices.push(egui::epaint::Vertex { pos: p, uv: uv(p), color: Color32::WHITE });
         }
@@ -327,4 +331,74 @@ pub fn section_end(ui: &mut Ui, s: Section) {
 pub fn section_next(ui: &mut Ui, s: Section) -> Section {
     section_end(ui, s);
     section_begin(ui)
+}
+
+/// How far the pointer's hover effect has faded in (0 → 1), animated so the
+/// effect comes and goes smoothly.
+pub const HOVER_FADE_SECONDS: f32 = 0.18;
+pub fn hover_amount(ctx: &Context, id: egui::Id, hovered: bool) -> f32 {
+    ctx.animate_bool_with_time(id.with("hover_fade"), hovered, HOVER_FADE_SECONDS)
+}
+
+/// A see-through white veil laid over a surface under the pointer: it makes
+/// the surface lighter while letting what is behind show through.
+pub fn hover_veil(pal: &Pal, amount: f32) -> Color32 {
+    let max = if pal.dark { 30.0 } else { 150.0 };
+    Color32::from_white_alpha((max * amount.clamp(0.0, 1.0)).round() as u8)
+}
+
+/// Mixes two colours (amount 0 = `a`, 1 = `b`).
+pub fn mix(a: Color32, b: Color32, amount: f32) -> Color32 {
+    let k = amount.clamp(0.0, 1.0);
+    let f = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * k).round() as u8;
+    Color32::from_rgba_premultiplied(f(a.r(), b.r()), f(a.g(), b.g()), f(a.b(), b.b()), f(a.a(), b.a()))
+}
+
+/// Draws a shortcut as a row of keycaps centred on `center`.
+pub fn keycaps(p: &Painter, center: egui::Pos2, keys: &[String], pal: &Pal) {
+    let font = egui::FontId::proportional(13.0);
+    let h = 22.0;
+    let gap = 4.0;
+    let is_drawn = |k: &str| matches!(k, "⌥" | "⇧" | "⌃");
+    let widths: Vec<f32> = keys
+        .iter()
+        .map(|k| if is_drawn(k) { h } else { (p.layout_no_wrap(k.clone(), font.clone(), pal.text).size().x + 12.0).max(h) })
+        .collect();
+    let total = widths.iter().sum::<f32>() + gap * (widths.len().saturating_sub(1)) as f32;
+    let (fill, border) = if pal.dark {
+        (Color32::from_white_alpha(22), Color32::from_white_alpha(38))
+    } else {
+        (Color32::from_white_alpha(230), Color32::from_black_alpha(30))
+    };
+    let mut x = center.x - total / 2.0;
+    for (k, w) in keys.iter().zip(widths) {
+        let r = Rect::from_min_size(pos2(x, center.y - h / 2.0), vec2(w, h));
+        p.rect_filled(r, 6.0, fill);
+        p.rect_stroke(r, 6.0, Stroke::new(1.0_f32, border), StrokeKind::Inside);
+        if is_drawn(k) {
+            modifier_glyph(p, Rect::from_center_size(r.center(), vec2(10.0, 10.0)), k, pal.text);
+        } else {
+            p.text(r.center(), egui::Align2::CENTER_CENTER, k, font.clone(), pal.text);
+        }
+        x += w + gap;
+    }
+}
+
+/// ⌥ ⇧ ⌃ drawn as lines: the fonts at hand draw them too small next to ⌘.
+fn modifier_glyph(p: &Painter, r: Rect, key: &str, c: Color32) {
+    let at = |x: f32, y: f32| pos2(r.min.x + x * r.width(), r.min.y + y * r.height());
+    let s = Stroke::new(1.4_f32, c);
+    match key {
+        "⌥" => {
+            p.add(egui::Shape::line(vec![at(0.0, 0.15), at(0.32, 0.15), at(0.68, 0.85), at(1.0, 0.85)], s));
+            p.line_segment([at(0.6, 0.15), at(1.0, 0.15)], s);
+        }
+        "⇧" => {
+            let pts = vec![at(0.5, 0.02), at(0.98, 0.5), at(0.72, 0.5), at(0.72, 0.95), at(0.28, 0.95), at(0.28, 0.5), at(0.02, 0.5)];
+            p.add(egui::Shape::closed_line(pts, s));
+        }
+        _ => {
+            p.add(egui::Shape::line(vec![at(0.12, 0.72), at(0.5, 0.28), at(0.88, 0.72)], s));
+        }
+    }
 }

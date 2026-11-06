@@ -62,7 +62,6 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Stop Recording", "Detener grabación", "Atura l'enregistrament"),
     ("Open…", "Abrir…", "Obre…"),
     ("Open from Clipboard", "Abrir desde el portapapeles", "Obre des del porta-retalls"),
-    ("Upload from Clipboard", "Subir desde el portapapeles", "Puja des del porta-retalls"),
     ("Open Latest Image", "Abrir la última imagen", "Obre l'última imatge"),
     ("Preferences…", "Ajustes…", "Configuració…"),
     ("Quit", "Salir", "Surt"),
@@ -72,7 +71,6 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Images", "Imágenes", "Imatges"),
     ("Can't open this file: {}", "No se puede abrir este archivo: {}", "No es pot obrir aquest fitxer: {}"),
     ("There is no screenshot yet", "Todavía no hay ninguna captura", "Encara no hi ha cap captura"),
-    ("Uploading needs a connected account; opening the editor instead", "Para subir hace falta una cuenta conectada; se abre el editor", "Per pujar cal un compte connectat; s'obre l'editor"),
     ("Saved to {}", "Guardado en {}", "Desat a {}"),
     ("Save image", "Guardar imagen", "Desa la imatge"),
     ("Image copied to clipboard", "Imagen copiada al portapapeles", "Imatge copiada al porta-retalls"),
@@ -128,8 +126,6 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Copy image  ⌘C", "Copiar imagen  ⌘C", "Copia la imatge  ⌘C"),
     ("Open in…", "Abrir en…", "Obre amb…"),
     ("External editor  ⌘E", "Editor externo  ⌘E", "Editor extern  ⌘E"),
-    ("Upload", "Subir", "Puja"),
-    ("Uploading needs a connected account, which this version doesn't include", "Para subir hace falta una cuenta conectada, que esta versión no incluye", "Per pujar cal un compte connectat, que aquesta versió no inclou"),
     ("Save", "Guardar", "Desa"),
     ("Save  ⌘S", "Guardar  ⌘S", "Desa  ⌘S"),
     ("Selected arrow", "Flecha seleccionada", "Fletxa seleccionada"),
@@ -159,7 +155,7 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Text with an outline", "Texto con contorno", "Text amb contorn"),
     ("Text on a coloured box", "Texto sobre un recuadro de color", "Text sobre un requadre de color"),
     ("Shadow", "Sombra", "Ombra"),
-    ("Shadow & outline under new items", "Sombra y contorno bajo los nuevos elementos", "Ombra i contorn sota els elements nous"),
+    ("Drop shadow around the picture and under the annotations", "Sombra alrededor de la imagen y bajo las anotaciones", "Ombra al voltant de la imatge i sota les anotacions"),
     ("Zoom out  ⌘−", "Alejar  ⌘−", "Allunya  ⌘−"),
     ("Zoom in  ⌘+", "Acercar  ⌘+", "Apropa  ⌘+"),
     ("Fit", "Ajustar", "Ajusta"),
@@ -171,7 +167,6 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Height:", "Alto:", "Alçada:"),
     ("Save proportions", "Mantener proporciones", "Mantén les proporcions"),
     ("OK", "Aceptar", "D'acord"),
-    ("Needs a connected account, which this version doesn't include", "Necesita una cuenta conectada, que esta versión no incluye", "Necessita un compte connectat, que aquesta versió no inclou"),
     ("General", "General", "General"),
     ("Advanced", "Avanzado", "Avançat"),
     ("Appearance", "Apariencia", "Aparença"),
@@ -182,13 +177,6 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Reset", "Restablecer", "Restableix"),
     ("After screenshot:", "Después de capturar:", "Després de capturar:"),
     ("Sound effects", "Efectos de sonido", "Efectes de so"),
-    ("After upload:", "Después de subir:", "Després de pujar:"),
-    ("Do not copy", "No copiar", "Sense copiar"),
-    ("Copy site link", "Copiar el enlace a la página", "Copia l'enllaç a la pàgina"),
-    ("Copy direct image link", "Copiar el enlace directo a la imagen", "Copia l'enllaç directe a la imatge"),
-    ("Open in browser", "Abrir en el navegador", "Obre al navegador"),
-    ("Short links", "Enlaces cortos", "Enllaços curts"),
-    ("Apply text recognition (in development)", "Reconocer texto (en desarrollo)", "Reconeix el text (en desenvolupament)"),
     ("External Image Editor:", "Editor de imágenes externo:", "Editor d'imatges extern:"),
     ("Choose application...", "Elegir aplicación...", "Tria una aplicació..."),
     ("Choose application", "Elegir aplicación", "Tria una aplicació"),
@@ -225,8 +213,6 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Hide all notifications", "Ocultar todas las notificaciones", "Amaga totes les notificacions"),
     ("Editor:", "Editor:", "Editor:"),
     ("Show tooltips", "Mostrar ayudas emergentes", "Mostra els indicadors de funció"),
-    ("Close the editor after uploading", "Cerrar el editor después de subir", "Tanca l'editor després de pujar"),
-    ("Use default browser to sign in", "Iniciar sesión en el navegador", "Inicia la sessió al navegador"),
     ("Video record hotkeys:", "Atajos de grabación de vídeo:", "Dreceres d'enregistrament de vídeo:"),
     ("Default", "Por defecto", "Per defecte"),
     ("Restore the default hotkeys", "Restaurar los atajos por defecto", "Restaura les dreceres per defecte"),
@@ -244,11 +230,9 @@ const TABLE: &[(&str, &str, &str)] = &[
     ("Path", "Ruta", "Camí"),
     ("Open {} editor", "Abrir el editor de {}", "Obre l'editor de {}"),
     ("Save screenshot", "Guardar la captura", "Desa la captura"),
-    ("Upload screenshot", "Subir la captura", "Puja la captura"),
     ("Open external editor", "Abrir el editor externo", "Obre l'editor extern"),
     ("Copy image to clipboard", "Copiar la imagen al portapapeles", "Copia la imatge al porta-retalls"),
     ("Capture frozen area:", "Captura de área congelada:", "Captura d'àrea congelada:"),
-    ("Capture area & Upload:", "Captura de área y subida:", "Captura d'àrea i pujada:"),
     ("Capture fullscreen:", "Captura de pantalla completa:", "Captura de pantalla completa:"),
     ("Fullscreen after 10s:", "Pantalla completa en 10 s:", "Pantalla completa d'aquí a 10 s:"),
     ("Open Latest Image:", "Abrir la última imagen:", "Obre l'última imatge:"),
@@ -349,9 +333,14 @@ pub fn lang_picker(ui: &mut egui::Ui, lang: &mut Lang, compact: bool) -> bool {
     let font = FontId::proportional(13.0);
     let text_w = ui.fonts(|f| f.layout_no_wrap(label.to_string(), font.clone(), Color32::WHITE).size().x);
     let (r, resp) = ui.allocate_exact_size(vec2(8.0 + FLAG.x + 6.0 + text_w + 18.0, 28.0), Sense::click());
+    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let vis = ui.style().interact(&resp);
+    let pal = crate::theme::pal(ui.ctx());
+    let hov = crate::theme::hover_amount(ui.ctx(), resp.id, resp.hovered());
     let p = ui.painter();
-    p.rect(r, 8.0, vis.weak_bg_fill, vis.bg_stroke, egui::StrokeKind::Inside);
+    p.rect_filled(r, 8.0, pal.card);
+    p.rect_filled(r, 8.0, crate::theme::hover_veil(&pal, hov));
+    p.rect_stroke(r, 8.0, Stroke::new(1.0_f32, pal.border), egui::StrokeKind::Inside);
     let fr = Rect::from_min_size(pos2(r.min.x + 8.0, r.center().y - FLAG.y / 2.0), FLAG);
     paint_flag(p, fr, *lang);
     p.text(pos2(fr.max.x + 6.0, r.center().y), Align2::LEFT_CENTER, label, font.clone(), vis.text_color());

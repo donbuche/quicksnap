@@ -26,7 +26,6 @@ pub struct Shape {
     pub kind: Kind,
     pub color: Color32,
     pub width: f32,
-    pub shadow: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -434,10 +433,11 @@ impl Shape {
         }
     }
 
-    pub fn prims(&self, font: &AnnotFont) -> Vec<Prim> {
+    /// What to draw, with a soft shadow under it when `shadow` is on.
+    pub fn prims(&self, font: &AnnotFont, shadow: bool) -> Vec<Prim> {
         let mut out = Vec::new();
         let body = self.body_prims(font);
-        if self.shadow {
+        if shadow {
             let off = shadow_offset(self.width);
             let shade = Color32::from_rgba_unmultiplied(0, 0, 0, SHADOW_ALPHA);
             for p in &body {
@@ -651,7 +651,8 @@ fn draw_text(px: &mut tiny_skia::Pixmap, font: &AnnotFont, pos: Pos2, text: &str
 }
 
 /// Draws every shape onto a copy of the picture.
-pub fn bake(img: &RgbaImage, shapes: &[Shape], font: &AnnotFont) -> RgbaImage {
+/// Draws the items into the picture; `shadows` adds a soft shadow under them.
+pub fn bake(img: &RgbaImage, shapes: &[Shape], font: &AnnotFont, shadows: bool) -> RgbaImage {
     if shapes.is_empty() {
         return img.clone();
     }
@@ -671,7 +672,7 @@ pub fn bake(img: &RgbaImage, shapes: &[Shape], font: &AnnotFont) -> RgbaImage {
     // the blurred picture, made only when some item needs it
     let mut blurred: Option<RgbaImage> = None;
     for s in shapes {
-        for prim in s.prims(font) {
+        for prim in s.prims(font, shadows) {
             match prim {
                 Prim::Stroke { pts, width, color, closed } => {
                     if let Some(path) = path_of(&pts, closed) {
@@ -753,6 +754,69 @@ pub fn outside_parts(full: Rect, r: Rect) -> Vec<Rect> {
 }
 
 /// Blur a region of the picture in place (three box-blur passes; radius estimated).
+/// The drop shadow around an exported picture (the editor's Shadow toggle):
+/// a soft black shadow, slightly lower than the picture, on a transparent
+/// margin, like the shadow macOS gives window screenshots. Its softness
+/// grows with the picture (σ = 2 % of the longer side, 12–40 px).
+pub const DROP_SHADOW_ALPHA: f32 = 0.55;
+pub const DROP_SHADOW_SIGMA: f32 = 0.02;
+pub const DROP_SHADOW_SIGMA_MIN: f32 = 12.0;
+pub const DROP_SHADOW_SIGMA_MAX: f32 = 40.0;
+pub const DROP_SHADOW_DROP: f32 = 0.6;
+pub const DROP_SHADOW_MARGIN: f32 = 2.5;
+
+/// σ, downward offset and margin of the drop shadow for a w × h picture.
+pub fn drop_shadow_geometry(w: f32, h: f32) -> (f32, f32, f32) {
+    let sigma = (w.max(h) * DROP_SHADOW_SIGMA).clamp(DROP_SHADOW_SIGMA_MIN, DROP_SHADOW_SIGMA_MAX);
+    let drop = (sigma * DROP_SHADOW_DROP).round();
+    let margin = (sigma * DROP_SHADOW_MARGIN + drop).ceil();
+    (sigma, drop, margin)
+}
+
+/// Error function (Abramowitz & Stegun 7.1.26, error below 1.5e-7).
+fn erf(x: f32) -> f32 {
+    let s = x.signum();
+    let x = x.abs();
+    let t = 1.0 / (1.0 + 0.327_591_1 * x);
+    let y = 1.0 - (((((1.061_405_4 * t - 1.453_152_1) * t) + 1.421_413_7) * t - 0.284_496_74) * t + 0.254_829_6) * t * (-x * x).exp();
+    s * y
+}
+
+/// The picture on a transparent margin with a soft drop shadow under it.
+pub fn drop_shadow(img: &RgbaImage) -> RgbaImage {
+    let (w, h) = img.dimensions();
+    let (sigma, drop, margin) = drop_shadow_geometry(w as f32, h as f32);
+    let m = margin as u32;
+    let (ow, oh) = (w + 2 * m, h + 2 * m);
+    // a blurred rectangle is the product of two blurred 1-D steps
+    let k = 1.0 / (sigma * std::f32::consts::SQRT_2);
+    let profile = |n: u32, a: f32, b: f32| -> Vec<f32> {
+        (0..n).map(|i| {
+            let p = i as f32 + 0.5;
+            0.5 * (erf((p - a) * k) - erf((p - b) * k))
+        }).collect()
+    };
+    let gx = profile(ow, margin, margin + w as f32);
+    let gy = profile(oh, margin + drop, margin + drop + h as f32);
+    let mut out = RgbaImage::from_fn(ow, oh, |x, y| {
+        let a = (DROP_SHADOW_ALPHA * gx[x as usize] * gy[y as usize] * 255.0).round().clamp(0.0, 255.0) as u8;
+        image::Rgba([0, 0, 0, a])
+    });
+    for (x, y, p) in img.enumerate_pixels() {
+        let dst = out.get_pixel_mut(x + m, y + m);
+        let sa = p[3] as f32 / 255.0;
+        let da = dst[3] as f32 / 255.0;
+        let oa = sa + da * (1.0 - sa);
+        if oa > 0.0 {
+            for c in 0..3 {
+                dst[c] = ((p[c] as f32 * sa + dst[c] as f32 * da * (1.0 - sa)) / oa).round() as u8;
+            }
+        }
+        dst[3] = (oa * 255.0).round() as u8;
+    }
+    out
+}
+
 /// How strongly the Blur tool hides things: the picture is shrunk by a factor
 /// that grows with its size (text a few dozen pixels tall ends up one or two
 /// pixels tall, so it can't be read back) and then softened.
@@ -845,8 +909,8 @@ mod tests {
         // 1-px black and white stripes: after the blur they must be a flat grey
         let img = RgbaImage::from_fn(400, 300, |x, _| if x % 2 == 0 { image::Rgba([0, 0, 0, 255]) } else { image::Rgba([255, 255, 255, 255]) });
         let r = Rect::from_min_max(pos2(100.0, 100.0), pos2(300.0, 200.0));
-        let blur = Shape { kind: Kind::Blur { r }, color: Color32::RED, width: 4.0, shadow: true };
-        let out = bake(&img, &[blur], &AnnotFont::load(None));
+        let blur = Shape { kind: Kind::Blur { r }, color: Color32::RED, width: 4.0 };
+        let out = bake(&img, &[blur], &AnnotFont::load(None), true);
         for x in 120..280 {
             let v = out.get_pixel(x, 150)[0] as i32;
             assert!((v - 128).abs() < 30, "pixel {x} is {v}");
@@ -856,15 +920,30 @@ mod tests {
     }
 
     #[test]
+    fn drop_shadow_adds_a_soft_transparent_margin() {
+        let img = RgbaImage::from_pixel(400, 300, image::Rgba([255, 255, 255, 255]));
+        let out = drop_shadow(&img);
+        let (_, drop, margin) = drop_shadow_geometry(400.0, 300.0);
+        let m = margin as u32;
+        assert_eq!(out.dimensions(), (400 + 2 * m, 300 + 2 * m));
+        // the picture itself is untouched, the corners are see-through and
+        // there is a visible shadow just below the picture
+        assert_eq!(*out.get_pixel(m + 200, m + 150), image::Rgba([255, 255, 255, 255]));
+        assert_eq!(out.get_pixel(0, 0)[3], 0);
+        let below = out.get_pixel(m + 200, m + 300 + drop as u32);
+        assert!(below[3] > 60, "shadow under the picture: {}", below[3]);
+    }
+
+    #[test]
     fn baking_draws_shapes_and_text() {
         let img = RgbaImage::from_pixel(200, 120, image::Rgba([255, 255, 255, 255]));
         let font = AnnotFont::load(None);
         let red = Color32::from_rgb(255, 0, 0);
         let shapes = vec![
-            Shape { kind: Kind::Arrow { a: pos2(10.0, 100.0), b: pos2(150.0, 20.0) }, color: red, width: 6.0, shadow: true },
-            Shape { kind: Kind::Text { pos: pos2(20.0, 10.0), text: "Hi".into(), size: 24.0, style: TextStyle::Plain }, color: Color32::BLACK, width: 6.0, shadow: false },
+            Shape { kind: Kind::Arrow { a: pos2(10.0, 100.0), b: pos2(150.0, 20.0) }, color: red, width: 6.0 },
+            Shape { kind: Kind::Text { pos: pos2(20.0, 10.0), text: "Hi".into(), size: 24.0, style: TextStyle::Plain }, color: Color32::BLACK, width: 6.0 },
         ];
-        let out = bake(&img, &shapes, &font);
+        let out = bake(&img, &shapes, &font, true);
         let reds = out.pixels().filter(|p| p[0] > 200 && p[1] < 60 && p[2] < 60).count();
         let darks = out.pixels().filter(|p| p[0] < 60 && p[1] < 60 && p[2] < 60).count();
         assert!(reds > 100, "arrow drawn: {reds}");
@@ -891,9 +970,8 @@ mod tests {
             kind: Kind::Text { pos: pos2(20.0, 20.0), text: "Box".into(), size: 30.0, style: TextStyle::Box },
             color: blue,
             width: 4.0,
-            shadow: false,
         };
-        let out = bake(&img, &[boxed.clone()], &font);
+        let out = bake(&img, &[boxed.clone()], &font, false);
         let blues = out.pixels().filter(|p| p[2] > 200 && p[0] < 60).count();
         assert!(blues > 400, "box drawn: {blues}");
         // hit inside the text, miss far away, then move it
@@ -905,8 +983,7 @@ mod tests {
             kind: Kind::Text { pos: pos2(20.0, 60.0), text: "Hi".into(), size: 30.0, style: TextStyle::Outline },
             color: Color32::from_rgb(255, 0, 0),
             width: 4.0,
-            shadow: true,
         };
-        assert!(outline.prims(&font).len() >= 13);
+        assert!(outline.prims(&font, true).len() >= 13);
     }
 }

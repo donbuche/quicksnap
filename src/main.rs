@@ -41,11 +41,19 @@ fn main() -> eframe::Result<()> {
         .and_then(|i| args.get(i + 1))
         .map(std::path::PathBuf::from);
 
+    // QUICKSNAP_WINDOW=<w>x<h> starts with another window size (for checking
+    // layouts with --screenshot).
+    let size = std::env::var("QUICKSNAP_WINDOW")
+        .ok()
+        .and_then(|v| v.split_once('x').and_then(|(w, h)| Some([w.parse::<f32>().ok()?, h.parse::<f32>().ok()?])))
+        .unwrap_or([1240.0, 800.0]);
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title(settings::APP_NAME)
-            .with_inner_size([1240.0, 800.0])
-            .with_min_inner_size([1000.0, 620.0])
+            .with_inner_size(size)
+            // wide enough for the editor's three top bars in one row, in
+            // every language
+            .with_min_inner_size([1180.0, 640.0])
             .with_icon(std::sync::Arc::new(appicon::icon_data(256))),
         event_loop_builder: Some(Box::new(|_builder| {
             // Live in the menu bar only: no Dock icon, no app menu. Closing the

@@ -12,7 +12,6 @@ use std::collections::HashMap;
 pub enum Action {
     CaptureArea,
     CaptureFrozenArea,
-    CaptureAreaUpload,
     CaptureFullscreen,
     CaptureFullscreenDelayed,
     OpenEditor,
@@ -27,10 +26,9 @@ pub enum Action {
 }
 
 impl Action {
-    pub const CAPTURE_ROWS: [Action; 9] = [
+    pub const CAPTURE_ROWS: [Action; 8] = [
         Action::CaptureArea,
         Action::CaptureFrozenArea,
-        Action::CaptureAreaUpload,
         Action::CaptureFullscreen,
         Action::CaptureFullscreenDelayed,
         Action::OpenEditor,
@@ -50,7 +48,6 @@ impl Action {
         match self {
             Action::CaptureArea => t("Capture area:"),
             Action::CaptureFrozenArea => t("Capture frozen area:"),
-            Action::CaptureAreaUpload => t("Capture area & Upload:"),
             Action::CaptureFullscreen => t("Capture fullscreen:"),
             Action::CaptureFullscreenDelayed => t("Fullscreen after 10s:"),
             Action::OpenEditor => t("Open Latest Image:"),
@@ -79,6 +76,18 @@ pub struct Hotkey {
 impl Hotkey {
     pub fn alt_cmd(key: &str) -> Hotkey {
         Hotkey { ctrl: false, alt: true, shift: false, cmd: true, key: key.into() }
+    }
+
+    /// The keys one by one, modifiers first (for drawing them as keycaps).
+    pub fn parts(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        for (on, sym) in [(self.ctrl, "⌃"), (self.alt, "⌥"), (self.shift, "⇧"), (self.cmd, "⌘")] {
+            if on {
+                v.push(sym.to_string());
+            }
+        }
+        v.push(self.key.clone());
+        v
     }
 
     pub fn display(&self) -> String {
@@ -172,7 +181,7 @@ fn key_code(name: &str) -> Option<Code> {
     })
 }
 
-/// Defaults from the original: Capture Area ⌥⌘5, Frozen ⌥⌘8, Area & Upload ⌥⌘7,
+/// Defaults from the original: Capture Area ⌥⌘5, Frozen ⌥⌘8,
 /// Fullscreen ⌥⌘6, Open Editor ⌥⌘0. Delayed fullscreen and video are created
 /// switched off, so they start as "Not set".
 pub fn default_hotkeys() -> Vec<(Action, Option<Hotkey>)> {
@@ -181,7 +190,6 @@ pub fn default_hotkeys() -> Vec<(Action, Option<Hotkey>)> {
         let k = match a {
             Action::CaptureArea => Some(Hotkey::alt_cmd("5")),
             Action::CaptureFrozenArea => Some(Hotkey::alt_cmd("8")),
-            Action::CaptureAreaUpload => Some(Hotkey::alt_cmd("7")),
             Action::CaptureFullscreen => Some(Hotkey::alt_cmd("6")),
             Action::OpenEditor => Some(Hotkey::alt_cmd("0")),
             _ => None,

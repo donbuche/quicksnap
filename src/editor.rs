@@ -29,6 +29,12 @@ pub const PALETTE: [u32; 10] =
 /// constant 0x100904c20 = 0, 0, 0, 0.3).
 pub const CROP_DIM_ALPHA: u8 = 77;
 pub const UNDO_LIMIT: usize = 40;
+/// Top bars: distance from the window edge, gap between bars, and the height
+/// one row of bars takes.
+const BAR_MARGIN: f32 = 12.0;
+const BAR_GAP: f32 = 10.0;
+const BAR_ROW: f32 = 54.0;
+const SHADOW_TIP: &str = "Drop shadow around the picture and under the annotations";
 /// Radius of a selection handle and how far from it a press still grabs it
 /// (screen points).
 const HANDLE_RADIUS: f32 = 4.5;
@@ -145,6 +151,14 @@ pub struct Editor {
     zoom: Option<f32>,
     last_scale: f32,
     resize: Option<(u32, u32, bool)>,
+    /// The Shadow toggle as of this frame (used when annotations get baked
+    /// into the picture by crop, rotate or resize).
+    shadows: bool,
+    /// Widths of the tools, zoom and actions bars as last drawn, and whether
+    /// the zoom bar had to drop to a second row because they don't fit side
+    /// by side.
+    bar_widths: [f32; 3],
+    zoom_below: bool,
     img_rect: Option<Rect>,
     pub title: String,
     pub source: Option<PathBuf>,
@@ -175,6 +189,9 @@ impl Editor {
             zoom: None,
             last_scale: 1.0,
             resize: None,
+            shadows: true,
+            bar_widths: [0.0; 3],
+            zoom_below: false,
             img_rect: None,
             title: title.to_string(),
             source: None,
@@ -199,8 +216,15 @@ impl Editor {
     }
 
     /// The picture with all annotations drawn into it.
-    pub fn flattened(&self, font: &AnnotFont) -> RgbaImage {
-        shapes::bake(&self.doc.image, &self.doc.shapes, font)
+    /// The picture with all annotations drawn into it and, with `shadow`,
+    /// shadows under the annotations and a drop shadow around the picture.
+    pub fn flattened(&self, font: &AnnotFont, shadow: bool) -> RgbaImage {
+        let img = shapes::bake(&self.doc.image, &self.doc.shapes, font, shadow);
+        if shadow {
+            shapes::drop_shadow(&img)
+        } else {
+            img
+        }
     }
 
     fn push_undo(&mut self) {
@@ -230,7 +254,7 @@ impl Editor {
 
     fn bake_in_place(&mut self, font: &AnnotFont) {
         if !self.doc.shapes.is_empty() {
-            self.doc.image = shapes::bake(&self.doc.image, &self.doc.shapes, font);
+            self.doc.image = shapes::bake(&self.doc.image, &self.doc.shapes, font, self.shadows);
             self.doc.shapes.clear();
         }
         self.selected = None;
@@ -325,15 +349,26 @@ impl Editor {
     pub fn ui(&mut self, ctx: &Context, s: &mut Settings, font: &AnnotFont) -> Vec<Cmd> {
         let pal = theme::pal(ctx);
         let mut cmds = Vec::new();
+        self.shadows = s.editor_shadow;
         self.shortcuts(ctx, s, font, &mut cmds);
+        // the three top bars side by side need this much room; when the window
+        // is narrower the zoom bar goes under the actions bar
+        let avail = ctx.available_rect();
+        let [tw, zw, aw] = self.bar_widths;
+        let zoom_below = BAR_MARGIN * 2.0 + tw + zw + aw + BAR_GAP * 2.0 > avail.width();
+        if zoom_below != self.zoom_below {
+            self.zoom_below = zoom_below;
+            ctx.request_repaint();
+        }
         egui::CentralPanel::default().frame(Frame::new().fill(pal.bg)).show(ctx, |ui| {
             self.canvas(ui, s, font, &pal);
         });
-        let avail = ctx.available_rect();
-        self.tools_panel(ctx, s, font, &pal, avail, &mut cmds);
+        let tools = self.tools_panel(ctx, s, font, &pal, avail, &mut cmds);
         let actions = self.actions_panel(ctx, s, &pal, avail, &mut cmds);
         self.style_panel(ctx, s, &pal, avail);
-        self.zoom_panel(ctx, &pal, actions.left_top() + vec2(-10.0, 0.0));
+        let zoom_at = if self.zoom_below { actions.right_bottom() + vec2(0.0, BAR_GAP) } else { actions.left_top() - vec2(BAR_GAP, 0.0) };
+        let zoom = self.zoom_panel(ctx, &pal, zoom_at);
+        self.bar_widths = [tools.width(), zoom.width(), actions.width()];
         self.text_editor(ctx, font, &pal);
         self.resize_dialog(ctx, font);
         cmds
@@ -484,8 +519,8 @@ impl Editor {
         resp
     }
 
-    fn tools_panel(&mut self, ctx: &Context, s: &mut Settings, font: &AnnotFont, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) {
-        theme::floating(ctx, "tools_panel", Align2::LEFT_TOP, avail.left_top() + vec2(12.0, 12.0), pal, self.backdrop, |ui| {
+    fn tools_panel(&mut self, ctx: &Context, s: &mut Settings, font: &AnnotFont, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) -> Rect {
+        theme::floating(ctx, "tools_panel", Align2::LEFT_TOP, avail.left_top() + vec2(BAR_MARGIN, BAR_MARGIN), pal, self.backdrop, |ui| {
             if Self::tool_button(ui, pal, s, Icon::Back, false, (t("Home"), "", t("Back to the capture screen"))).clicked() {
                 cmds.push(Cmd::Home);
             }
@@ -525,11 +560,13 @@ impl Editor {
             if Self::tool_button(ui, pal, s, Icon::Redo, false, (t("Redo"), "⇧⌘Z", "")).clicked() {
                 self.redo();
             }
-        });
+        })
+        .response
+        .rect
     }
 
     fn actions_panel(&mut self, ctx: &Context, s: &Settings, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) -> Rect {
-        theme::floating(ctx, "actions_panel", Align2::RIGHT_TOP, avail.right_top() + vec2(-12.0, 12.0), pal, self.backdrop, |ui| {
+        theme::floating(ctx, "actions_panel", Align2::RIGHT_TOP, avail.right_top() + vec2(-BAR_MARGIN, BAR_MARGIN), pal, self.backdrop, |ui| {
             let b = |t: &str| egui::Button::new(t).min_size(vec2(0.0, 32.0)).corner_radius(9.0);
             let c = ui.add(b(t("Copy")));
             if c.clicked() {
@@ -545,8 +582,6 @@ impl Editor {
             if s.show_tooltips_editor {
                 e.on_hover_text(t("External editor  ⌘E"));
             }
-            ui.add_enabled(false, b(t("Upload")))
-                .on_disabled_hover_text(t("Uploading needs a connected account, which this version doesn't include"));
             let save = egui::Button::new(RichText::new(t("Save")).color(Color32::WHITE).strong())
                 .fill(pal.accent)
                 .min_size(vec2(64.0, 32.0))
@@ -586,7 +621,7 @@ impl Editor {
                     Kind::Blur { .. } => t("Selected blur area"),
                 };
                 let label = if self.editing.is_some() { t("Typing — Esc to finish").to_string() } else { what.to_string() };
-                (sh.color, sh.width, sh.shadow, ts, st, sh.is_text(), matches!(sh.kind, Kind::Bubble { .. }), label)
+                (sh.color, sh.width, s.editor_shadow, ts, st, sh.is_text(), matches!(sh.kind, Kind::Bubble { .. }), label)
             }
             None => {
                 let text_tool = matches!(self.tool, Tool::Text | Tool::Bubble);
@@ -625,6 +660,8 @@ impl Editor {
                 ui.add_sized(vec2(118.0, 32.0), egui::Label::new(RichText::new(label).size(12.0).color(pal.hint)).truncate());
                 theme::divider(ui, pal);
                 ui.label(RichText::new(t("Drag over anything you want to hide · ⇧ for a square")).size(12.0).color(pal.text));
+                theme::divider(ui, pal);
+                ui.toggle_value(&mut s.editor_shadow, t("Shadow")).on_hover_text(t(SHADOW_TIP));
             });
             return;
         }
@@ -656,11 +693,25 @@ impl Editor {
                     new_color = col;
                 }
             }
-            let mut rgb = [new_color.r(), new_color.g(), new_color.b()];
-            ui.spacing_mut().interact_size = vec2(20.0, 20.0);
-            if egui::color_picker::color_edit_button_srgb(ui, &mut rgb).on_hover_text(t("Any colour")).changed() {
-                new_color = Color32::from_rgb(rgb[0], rgb[1], rgb[2]);
+            // any other colour: a rainbow square that opens a colour picker
+            let custom = !PALETTE.iter().map(|c| hex(*c)).any(|c| c.r() == new_color.r() && c.g() == new_color.g() && c.b() == new_color.b());
+            let (r, resp) = ui.allocate_exact_size(vec2(26.0, 32.0), Sense::click());
+            let sq = Rect::from_center_size(r.center(), if resp.hovered() { vec2(20.0, 20.0) } else { vec2(18.0, 18.0) });
+            if custom {
+                ui.painter().rect_stroke(sq.expand(3.5), 7.0, Stroke::new(2.0_f32, pal.accent), egui::StrokeKind::Middle);
             }
+            paint_rainbow(ui.painter(), sq, 5.0);
+            ui.painter().rect_stroke(sq, 5.0, Stroke::new(1.0_f32, pal.border), egui::StrokeKind::Inside);
+            let resp = resp.on_hover_text(t("Any colour"));
+            egui::Popup::from_toggle_button_response(&resp)
+                .align(egui::RectAlign::TOP)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                .show(|ui| {
+                    let mut c = new_color;
+                    if egui::color_picker::color_picker_color32(ui, &mut c, egui::color_picker::Alpha::Opaque) {
+                        new_color = c;
+                    }
+                });
             ui.spacing_mut().item_spacing.x = 4.0;
             theme::divider(ui, pal);
             // line size with a live preview
@@ -723,12 +774,13 @@ impl Editor {
                 }
             }
             theme::divider(ui, pal);
-            ui.toggle_value(&mut new_shadow, t("Shadow")).on_hover_text(t("Shadow & outline under new items"));
+            ui.toggle_value(&mut new_shadow, t("Shadow")).on_hover_text(t(SHADOW_TIP));
         });
 
+        // the shadow is for the whole picture, not for one item
+        s.editor_shadow = new_shadow;
         let changed = new_color != color
             || new_width != width
-            || new_shadow != shadow
             || new_tsize != tsize
             || new_style != tstyle;
         if !changed {
@@ -744,7 +796,6 @@ impl Editor {
         // defaults for new items
         s.editor_color = [new_color.r(), new_color.g(), new_color.b(), 255];
         s.editor_width = new_width;
-        s.editor_shadow = new_shadow;
         if is_text {
             s.editor_text_size = new_tsize;
         }
@@ -760,7 +811,6 @@ impl Editor {
             let sh = &mut self.doc.shapes[i];
             sh.color = new_color;
             sh.width = new_width;
-            sh.shadow = new_shadow;
             match &mut sh.kind {
                 Kind::Text { size, style, .. } => {
                     *size = new_tsize;
@@ -774,7 +824,7 @@ impl Editor {
         }
     }
 
-    fn zoom_panel(&mut self, ctx: &Context, pal: &Pal, at: Pos2) {
+    fn zoom_panel(&mut self, ctx: &Context, pal: &Pal, at: Pos2) -> Rect {
         let ppp = ctx.pixels_per_point();
         theme::floating(ctx, "zoom_panel", Align2::RIGHT_TOP, at, pal, self.backdrop, |ui| {
             ui.set_min_height(32.0);
@@ -795,7 +845,9 @@ impl Editor {
             if ui.small_button("1:1").on_hover_text(t("Original size")).clicked() {
                 self.zoom = Some(1.0 / ppp);
             }
-        });
+        })
+        .response
+        .rect
     }
 
     /// In-place typing: a borderless text field drawn exactly over the text.
@@ -865,7 +917,9 @@ impl Editor {
         let avail = ui.available_size();
         let ppp = ctx.pixels_per_point();
         // leave room for the floating panels above and below
-        let fit = ((avail.x - 60.0) / iw).min((avail.y - 160.0) / ih).min(1.0 / ppp).max(0.02);
+        // with the zoom bar on a second row the picture moves down under it
+        let below = if self.zoom_below { BAR_ROW } else { 0.0 };
+        let fit = ((avail.x - 60.0) / iw).min((avail.y - 160.0 - below) / ih).min(1.0 / ppp).max(0.02);
         let scale = self.zoom.unwrap_or(fit);
         self.last_scale = scale;
         let size = vec2(iw * scale, ih * scale);
@@ -876,12 +930,24 @@ impl Editor {
             .show(ui, |ui| {
                 let total = vec2((size.x + 60.0).max(ui.available_width()), (size.y + 150.0).max(ui.available_height()));
                 let (rect, resp) = ui.allocate_exact_size(total, Sense::click_and_drag());
-                let img_rect = Rect::from_center_size(rect.center() + vec2(0.0, -4.0), size);
+                let img_rect = Rect::from_center_size(rect.center() + vec2(0.0, -4.0 + below / 2.0), size);
                 self.img_rect = Some(img_rect);
                 let painter = ui.painter_at(rect);
-                theme::shadow(&painter, img_rect, 6, pal);
+                // with Shadow on, the same drop shadow the exported picture gets
+                if s.editor_shadow {
+                    let (sigma, drop, _) = shapes::drop_shadow_geometry(iw, ih);
+                    let sh = egui::epaint::Shadow {
+                        offset: [0, (drop * scale).round() as i8],
+                        blur: (sigma * 2.5 * scale).round().clamp(1.0, 255.0) as u8,
+                        spread: 0,
+                        color: Color32::from_black_alpha((shapes::DROP_SHADOW_ALPHA * 255.0) as u8),
+                    };
+                    painter.add(sh.as_shape(img_rect, CornerRadius::same(2)));
+                } else {
+                    painter.rect_stroke(img_rect.expand(0.5), 2.0, Stroke::new(1.0_f32, pal.border), egui::StrokeKind::Outside);
+                }
                 painter.add(
-                    egui::epaint::RectShape::filled(img_rect, CornerRadius::same(6), Color32::WHITE)
+                    egui::epaint::RectShape::filled(img_rect, CornerRadius::same(2), Color32::WHITE)
                         .with_texture(tex.id(), Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))),
                 );
 
@@ -892,7 +958,7 @@ impl Editor {
 
                 let blur_tex = self.blur_tex.as_ref().map(|t| t.id());
                 for (i, sh) in self.doc.shapes.iter().enumerate() {
-                    let mut prims = sh.prims(font);
+                    let mut prims = sh.prims(font, s.editor_shadow);
                     if self.editing == Some(i) {
                         // the text field draws the letters while typing
                         let n_text = prims.iter().filter(|p| matches!(p, Prim::Text { .. })).count();
@@ -903,7 +969,7 @@ impl Editor {
                     paint_prims(&clip, &prims, &to_screen, scale, full, font.em_ratio(), blur_tex);
                 }
                 if let Some(p) = &self.pending {
-                    paint_prims(&clip, &p.prims(font), &to_screen, scale, full, font.em_ratio(), blur_tex);
+                    paint_prims(&clip, &p.prims(font, s.editor_shadow), &to_screen, scale, full, font.em_ratio(), blur_tex);
                     if let Kind::Blur { r } = p.kind {
                         dashed_rect(&clip, Rect::from_min_max(to_screen(r.min), to_screen(r.max)), Color32::WHITE);
                     }
@@ -1003,7 +1069,6 @@ impl Editor {
         let mods = ctx.input(|i| i.modifiers);
         let color = color_of(s.editor_color);
         let width = s.editor_width;
-        let shadow = s.editor_shadow;
         let tsize = s.editor_text_size;
         let tstyle = s.editor_text_style;
 
@@ -1049,7 +1114,7 @@ impl Editor {
             if let Some(o) = origin {
                 let p = to_img(o);
                 self.drag_start = Some(p);
-                let mk = |kind| Shape { kind, color, width, shadow };
+                let mk = |kind| Shape { kind, color, width };
                 let free_tool = self.tool != Tool::Crop;
                 let handle = if free_tool { self.handle_at(p, scale, font) } else { None };
                 let on_selected = self.selected.is_some() && self.hit_test(p, scale, font) == self.selected;
@@ -1202,7 +1267,7 @@ impl Editor {
                     return;
                 }
                 let hit = self.hit_test(p, scale, font);
-                let mk = |kind| Shape { kind, color, width, shadow };
+                let mk = |kind| Shape { kind, color, width };
                 match self.tool {
                     Tool::Text => {
                         if let Some(i) = hit.filter(|i| self.doc.shapes[*i].is_text()) {
@@ -1279,6 +1344,34 @@ impl Editor {
 
 #[derive(Default)]
 struct Vec2Opt(Option<egui::Vec2>);
+
+/// A rounded square filled with a colour wheel: every hue around the edge,
+/// fading to white in the middle.
+fn paint_rainbow(p: &Painter, r: Rect, radius: f32) {
+    let rad = radius.min(r.width() / 2.0).min(r.height() / 2.0);
+    let corners = [
+        (pos2(r.max.x - rad, r.min.y + rad), -90.0f32),
+        (pos2(r.max.x - rad, r.max.y - rad), 0.0),
+        (pos2(r.min.x + rad, r.max.y - rad), 90.0),
+        (pos2(r.min.x + rad, r.min.y + rad), 180.0),
+    ];
+    let c = r.center();
+    let mut mesh = egui::Mesh::default();
+    mesh.colored_vertex(c, Color32::WHITE);
+    for (k, start) in corners {
+        for i in 0..=8 {
+            let a = (start + i as f32 * 11.25).to_radians();
+            let q = pos2(k.x + rad * a.cos(), k.y + rad * a.sin());
+            let hue = ((q.y - c.y).atan2(q.x - c.x) / std::f32::consts::TAU).rem_euclid(1.0);
+            mesh.colored_vertex(q, egui::ecolor::Hsva::new(hue, 0.95, 1.0, 1.0).into());
+        }
+    }
+    let n = mesh.vertices.len() as u32;
+    for i in 1..n {
+        mesh.add_triangle(0, i, if i + 1 < n { i + 1 } else { 1 });
+    }
+    p.add(EShape::mesh(mesh));
+}
 
 fn badge(p: &Painter, at: Pos2, align: Align2, text: &str) {
     let galley = p.layout_no_wrap(text.to_string(), FontId::proportional(12.0), Color32::WHITE);

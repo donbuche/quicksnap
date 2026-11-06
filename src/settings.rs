@@ -19,10 +19,9 @@ pub const GIF_QUALITY_DEFAULT: u32 = 100;
 pub const GIF_QUALITY_MIN: u32 = 10;
 pub const GIF_QUALITY_MAX: u32 = 100;
 pub const COPY_IMAGE: u8 = 1;
-pub const COPY_URL: u8 = 2;
 pub const COPY_PATH: u8 = 4;
 pub const CLIPBOARD_FLAGS_DEFAULT: u8 = 1;
-pub const DRAG_DROP_FLAGS_DEFAULT: u8 = 7;
+pub const DRAG_DROP_FLAGS_DEFAULT: u8 = COPY_IMAGE | COPY_PATH;
 pub const DELAYED_CAPTURE_SECONDS: u32 = 10;
 
 // ---- Editor ----
@@ -45,18 +44,18 @@ pub enum VideoFormat {
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum AfterShot {
+    /// Settings saved by older versions may say "Upload", which is gone.
+    #[serde(alias = "Upload")]
     OpenEditor,
     Save,
-    Upload,
     ExternalEditor,
     Copy,
 }
 
 impl AfterShot {
-    pub const ALL: [AfterShot; 5] = [
+    pub const ALL: [AfterShot; 4] = [
         AfterShot::OpenEditor,
         AfterShot::Save,
-        AfterShot::Upload,
         AfterShot::ExternalEditor,
         AfterShot::Copy,
     ];
@@ -64,18 +63,10 @@ impl AfterShot {
         match self {
             AfterShot::OpenEditor => crate::i18n::tf("Open {} editor", &[&APP_NAME]),
             AfterShot::Save => crate::i18n::t("Save screenshot").into(),
-            AfterShot::Upload => crate::i18n::t("Upload screenshot").into(),
             AfterShot::ExternalEditor => crate::i18n::t("Open external editor").into(),
             AfterShot::Copy => crate::i18n::t("Copy image to clipboard").into(),
         }
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
-pub enum AfterUpload {
-    DoNotCopy,
-    CopySiteLink,
-    CopyDirectLink,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -84,11 +75,6 @@ pub struct Settings {
     // General
     pub after_shot: AfterShot,
     pub sound_effects: bool,
-    pub after_upload: AfterUpload,
-    pub close_after_upload: bool,
-    pub open_in_browser: bool,
-    pub short_links: bool,
-    pub apply_ocr: bool,
     pub external_editor: String,
     pub start_at_launch: bool,
 
@@ -117,12 +103,12 @@ pub struct Settings {
     pub hide_animation: bool,
     pub dont_show_notifications: bool,
     pub show_tooltips_editor: bool,
-    pub allow_default_browser: bool,
     pub theme: crate::theme::ThemeChoice,
     /// Interface language (English unless the person picks another).
     pub language: crate::i18n::Lang,
 
     // Hotkeys
+    #[serde(deserialize_with = "known_hotkeys")]
     pub hotkeys: Vec<(Action, Option<Hotkey>)>,
 
     // Fonts
@@ -142,11 +128,6 @@ impl Default for Settings {
         Settings {
             after_shot: AfterShot::OpenEditor,
             sound_effects: false,
-            after_upload: AfterUpload::CopySiteLink,
-            close_after_upload: true,
-            open_in_browser: true,
-            short_links: false,
-            apply_ocr: false,
             external_editor: "/System/Applications/Preview.app".into(),
             start_at_launch: false,
 
@@ -173,7 +154,6 @@ impl Default for Settings {
             hide_animation: false,
             dont_show_notifications: false,
             show_tooltips_editor: true,
-            allow_default_browser: false,
             theme: crate::theme::ThemeChoice::System,
             language: crate::i18n::Lang::En,
 
@@ -302,4 +282,12 @@ fn random_symbols(n: usize) -> String {
             ALPHABET[(seed % ALPHABET.len() as u64) as usize] as char
         })
         .collect()
+}
+
+/// Reads the hotkey list, skipping entries for actions this version no
+/// longer has (like the old "Capture area & Upload"), so an older settings
+/// file still loads.
+fn known_hotkeys<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<(Action, Option<Hotkey>)>, D::Error> {
+    let raw: Vec<serde_json::Value> = Deserialize::deserialize(d)?;
+    Ok(raw.into_iter().filter_map(|v| serde_json::from_value(v).ok()).collect())
 }

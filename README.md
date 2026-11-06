@@ -41,14 +41,19 @@ then save or copy it, with no accounts, no uploads and no telemetry.
   screen, and full screen after a 10-second delay
 - **Record video:** full-screen recording to `.mov`, with cursor and clicks shown
 - **Annotate:** arrows, rectangles, ellipses, lines, freehand pen, text and text callouts,
-  with colour palette, line width and drop shadow
-- **Redact and trim:** blur sensitive areas, crop, rotate and resize
+  with a colour palette (or any custom colour) and line width; every item can be moved
+  and resized afterwards
+- **Drop shadow:** optional soft shadow around the exported picture (transparent PNG),
+  like macOS window screenshots
+- **Redact and trim:** blur sensitive areas (movable, resizable), crop, rotate and resize
 - **Undo/redo:** up to 40 steps
 - **After each capture:** open the editor, save to a folder, copy to the clipboard, or
   open in an external editor such as Preview
 - **Configurable:** global hotkeys, save folder, PNG/JPEG, file-name templates
   (`%Y-%m-%d %H-%M-%S`, window title…), light/dark appearance and fonts
-- **Menu-bar icon:** every command is also available from the status bar
+- **Menu-bar app:** lives in the menu bar with no Dock icon; closing the window keeps it
+  running, and every command is also in the menu-bar icon's menu
+- **Languages:** English, Spanish and Catalan, picked from the home screen or Preferences
 - **Launch at login:** optional, from Preferences → General
 - **Small and native:** a single Rust binary, ~5 MB DMG
 
@@ -93,7 +98,6 @@ Default hotkeys (change them in **Preferences → Hotkeys**):
 |---|---|
 | Capture area | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>5</kbd> |
 | Capture full screen | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>6</kbd> |
-| Capture area & upload *(upload not available yet)* | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>7</kbd> |
 | Capture frozen area | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>8</kbd> |
 | Open latest image | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>0</kbd> |
 | Full screen after 10 s, record video, capture previous area, open from clipboard | not set |
@@ -135,6 +139,11 @@ needed), which is enough for the Mac it was built on.
 |---|---|
 | `--screenshot <file.png>` | Opens the editor with a sample picture, saves the window to `file.png` and exits |
 | `--write-icon <file.png> <size>` | Renders the app icon to a PNG (used by the packaging script) |
+| `--write-tray-icon <file.png> <size>` | Renders the one-ink menu-bar icon to a PNG |
+
+With `--screenshot`, the environment variables `QUICKSNAP_VIEW` (`home`, `prefs-general`,
+`prefs-advanced`…), `QUICKSNAP_THEME` (`light`/`dark`), `QUICKSNAP_LANG` (`en`/`es`/`ca`)
+and `QUICKSNAP_WINDOW` (e.g. `1000x620`) choose what is shown.
 
 ## Project layout
 
@@ -147,13 +156,16 @@ src/
 ├── shapes.rs        drawing of arrows, shapes, text, blur, crop
 ├── overlay.rs       on-screen selection overlay
 ├── hotkeys.rs       global hotkey registration
+├── i18n.rs          interface languages (EN/ES/CA) and flags
 ├── settings.rs      settings model and persistence
 ├── settings_ui.rs   Preferences window (General, Advanced, Appearance, Hotkeys, Fonts)
 ├── theme.rs         light/dark palettes and styling
 ├── icons.rs         vector toolbar icons
 └── appicon.rs       app icon, drawn in code
 scripts/
-└── package-macos.sh build QuickSnap.app and the .dmg
+├── package-macos.sh build QuickSnap.app and the .dmg
+├── install-local.sh build, install into /Applications and relaunch
+└── setup-signing.sh one-time local signing certificate (keeps permissions across rebuilds)
 docs/                README images
 ```
 
@@ -161,7 +173,6 @@ docs/                README images
 
 - [ ] Developer ID signing and Apple notarization
 - [ ] Universal binary (Apple Silicon + Intel)
-- [ ] Image upload / share links
 - [ ] Text recognition (OCR)
 - [ ] Area and window video recording, GIF export
 

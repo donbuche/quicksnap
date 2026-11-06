@@ -12,7 +12,6 @@ use crate::i18n::{t, tf};
 pub enum CaptureKind {
     Area,
     FrozenArea,
-    AreaUpload,
     Fullscreen,
     FullscreenDelayed,
 }
@@ -62,7 +61,7 @@ pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
         cmd.arg("-x");
     }
     match kind {
-        CaptureKind::Area | CaptureKind::FrozenArea | CaptureKind::AreaUpload => {
+        CaptureKind::Area | CaptureKind::FrozenArea => {
             cmd.arg("-i");
             if !opt.shot_on_click {
                 cmd.arg("-s"); // selection only, no click-to-snap-window
@@ -108,7 +107,14 @@ fn encode_png(img: &RgbaImage) -> Result<Vec<u8>, String> {
 }
 
 fn encode_jpeg(img: &RgbaImage, quality: u32) -> Result<Vec<u8>, String> {
-    let rgb = image::DynamicImage::ImageRgba8(img.clone()).to_rgb8();
+    // JPEG has no transparency: see-through parts (like a drop shadow's
+    // margin) go on white instead of turning black
+    let rgb = image::RgbImage::from_fn(img.width(), img.height(), |x, y| {
+        let p = img.get_pixel(x, y);
+        let a = p[3] as u32;
+        let c = |v: u8| ((v as u32 * a + 255 * (255 - a)) / 255) as u8;
+        image::Rgb([c(p[0]), c(p[1]), c(p[2])])
+    });
     let mut buf = Vec::new();
     let enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, quality.clamp(1, 100) as u8);
     rgb.write_with_encoder(enc).map_err(|e| e.to_string())?;
@@ -157,8 +163,7 @@ pub fn save_to_path(img: &RgbaImage, s: &Settings, path: &Path) -> Result<(), St
     std::fs::write(path, bytes).map_err(|e| e.to_string())
 }
 
-/// Copies following the "Copy to clipboard" flags (Image / URL / Path).
-/// URL needs an uploaded file, so only Image and Path apply here.
+/// Copies following the "Copy to clipboard" flags (Image / Path).
 pub fn copy_to_clipboard(img: &RgbaImage, s: &Settings, saved: Option<&Path>) -> Result<&'static str, String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     if s.clipboard_flags & COPY_IMAGE != 0 || saved.is_none() {

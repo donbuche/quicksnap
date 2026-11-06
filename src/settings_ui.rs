@@ -8,7 +8,7 @@ use egui::{vec2, Align2, Color32, Context, CornerRadius, FontId, Frame, Key, Mar
 use crate::hotkeys::{Action, Hotkey};
 use crate::icons::{self, Icon};
 use crate::settings::{
-    self, AfterShot, AfterUpload, ImageFormat, Settings, VideoFormat, APP_NAME, COPY_IMAGE, COPY_PATH, COPY_URL,
+    self, AfterShot, ImageFormat, Settings, VideoFormat, APP_NAME, COPY_IMAGE, COPY_PATH,
     GIF_FPS_MAX, GIF_FPS_MIN, GIF_QUALITY_MAX, GIF_QUALITY_MIN, JPEG_QUALITY_MAX, JPEG_QUALITY_MIN,
 };
 
@@ -21,7 +21,6 @@ const LABEL_W: f32 = 180.0;
 pub const HINT_COLOR: Color32 = Color32::from_rgb(0x60, 0x60, 0x60);
 #[allow(dead_code)]
 pub const WINDOW_BG: Color32 = Color32::from_rgb(0xec, 0xec, 0xec);
-const NO_ACCOUNT: &str = "Needs a connected account, which this version doesn't include";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Tab {
@@ -182,13 +181,8 @@ impl SettingsUi {
                 .selected_text(s.after_shot.label())
                 .show_ui(ui, |ui| {
                     for a in AfterShot::ALL {
-                        let enabled = a != AfterShot::Upload;
-                        let r = ui.add_enabled(enabled, egui::Button::selectable(s.after_shot == a, a.label()));
-                        if r.clicked() {
+                        if ui.add(egui::Button::selectable(s.after_shot == a, a.label())).clicked() {
                             s.after_shot = a;
-                        }
-                        if !enabled {
-                            r.on_disabled_hover_text(t(NO_ACCOUNT));
                         }
                     }
                 });
@@ -196,28 +190,6 @@ impl SettingsUi {
         row(ui, "", |ui| {
             ui.checkbox(&mut s.sound_effects, t("Sound effects"));
         });
-        sec = crate::theme::section_next(ui, sec);
-        ui.add_enabled_ui(false, |ui| {
-            row(ui, t("After upload:"), |ui| {
-                let label = match s.after_upload {
-                    AfterUpload::DoNotCopy => t("Do not copy"),
-                    AfterUpload::CopySiteLink => t("Copy site link"),
-                    AfterUpload::CopyDirectLink => t("Copy direct image link"),
-                };
-                egui::ComboBox::from_id_salt("after_upload").width(230.0).selected_text(label).show_ui(ui, |_| {});
-            });
-            row(ui, "", |ui| {
-                ui.checkbox(&mut s.open_in_browser, t("Open in browser"));
-            });
-            row(ui, "", |ui| {
-                ui.checkbox(&mut s.short_links, t("Short links"));
-            });
-            row(ui, "", |ui| {
-                ui.checkbox(&mut s.apply_ocr, t("Apply text recognition (in development)"));
-            });
-        })
-        .response
-        .on_disabled_hover_text(t(NO_ACCOUNT));
         sec = crate::theme::section_next(ui, sec);
         row(ui, t("External Image Editor:"), |ui| {
             let name = std::path::Path::new(&s.external_editor)
@@ -386,16 +358,6 @@ impl SettingsUi {
         row(ui, t("Editor:"), |ui| {
             ui.checkbox(&mut s.show_tooltips_editor, t("Show tooltips"));
         });
-        ui.add_enabled_ui(false, |ui| {
-            row(ui, "", |ui| {
-                ui.checkbox(&mut s.close_after_upload, t("Close the editor after uploading"));
-            });
-            row(ui, "", |ui| {
-                ui.checkbox(&mut s.allow_default_browser, t("Use default browser to sign in"));
-            });
-        })
-        .response
-        .on_disabled_hover_text(t(NO_ACCOUNT));
         crate::theme::section_end(ui, sec);
     }
 
@@ -603,19 +565,14 @@ fn separator(ui: &mut Ui) {
 }
 
 fn flags(ui: &mut Ui, v: &mut u8) {
-    for (bit, name) in [(COPY_IMAGE, t("Image")), (COPY_URL, "URL"), (COPY_PATH, t("Path"))] {
+    for (bit, name) in [(COPY_IMAGE, t("Image")), (COPY_PATH, t("Path"))] {
         let mut on = *v & bit != 0;
-        let enabled = bit != COPY_URL;
-        let r = ui.add_enabled(enabled, egui::Checkbox::new(&mut on, name));
-        if r.changed() {
+        if ui.checkbox(&mut on, name).changed() {
             if on {
                 *v |= bit;
             } else {
                 *v &= !bit;
             }
-        }
-        if !enabled {
-            r.on_disabled_hover_text(t(NO_ACCOUNT));
         }
     }
 }

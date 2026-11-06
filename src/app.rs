@@ -20,7 +20,7 @@ use crate::shapes::{AnnotFont, Kind, Shape, TextStyle};
 use crate::theme::{self, Backdrop};
 
 enum Msg {
-    Captured(CaptureKind, CaptureResult),
+    Captured(CaptureResult),
     Frozen(CaptureResult),
     Previous(CaptureResult),
     Hotkey(u32),
@@ -184,24 +184,21 @@ fn sample_picture() -> RgbaImage {
 fn sample_shapes() -> Vec<Shape> {
     let red = Color32::from_rgb(255, 0, 0);
     vec![
-        Shape { kind: Kind::Arrow { a: egui::pos2(900.0, 560.0), b: egui::pos2(560.0, 360.0) }, color: red, width: 6.0, shadow: true },
+        Shape { kind: Kind::Arrow { a: egui::pos2(900.0, 560.0), b: egui::pos2(560.0, 360.0) }, color: red, width: 6.0 },
         Shape {
             kind: Kind::Rect { r: Rect::from_min_max(egui::pos2(190.0, 180.0), egui::pos2(530.0, 370.0)), filled: false, darken: false },
             color: red,
             width: 6.0,
-            shadow: true,
         },
         Shape {
             kind: Kind::Bubble { tail: egui::pos2(760.0, 460.0), pos: egui::pos2(820.0, 600.0), text: "Sample note".into(), size: 24.0 },
             color: editor::hex(0x1f63be),
             width: 6.0,
-            shadow: true,
         },
         Shape {
             kind: Kind::Text { pos: egui::pos2(600.0, 200.0), text: "New layout".into(), size: 40.0, style: TextStyle::Outline },
             color: editor::hex(0xff7200),
             width: 6.0,
-            shadow: true,
         },
     ]
 }
@@ -325,7 +322,6 @@ impl App {
         let _ = menu.append(&PredefinedMenuItem::separator());
         add(t("Open…"), Some(Command::Open), true);
         add(t("Open from Clipboard"), Some(Command::OpenClipboard), true);
-        add(t("Upload from Clipboard"), None, false);
         add(t("Open Latest Image"), Some(Command::OpenLatest), true);
         let _ = menu.append(&PredefinedMenuItem::separator());
         add(t("Preferences…"), Some(Command::Preferences), true);
@@ -471,7 +467,7 @@ impl App {
                 o.shrink_retina = false;
                 Msg::Frozen(capture::capture(CaptureKind::Fullscreen, &o))
             } else {
-                Msg::Captured(kind, capture::capture(kind, &opt))
+                Msg::Captured(capture::capture(kind, &opt))
             };
             let _ = tx.send(msg);
             c.request_repaint();
@@ -545,7 +541,7 @@ impl App {
     }
 
     /// What happens to a fresh screenshot ("After screenshot" setting).
-    fn handle_new_image(&mut self, ctx: &Context, img: RgbaImage, kind: CaptureKind) {
+    fn handle_new_image(&mut self, ctx: &Context, img: RgbaImage) {
         self.latest = Some(img.clone());
         if let Some(d) = data_dir() {
             let _ = std::fs::create_dir_all(&d);
@@ -558,13 +554,8 @@ impl App {
                 Err(e) => self.toast(ctx, e),
             }
         }
-        let mut action = self.settings.after_shot;
-        if kind == CaptureKind::AreaUpload || action == AfterShot::Upload {
-            self.toast(ctx, t("Uploading needs a connected account; opening the editor instead"));
-            action = AfterShot::OpenEditor;
-        }
-        match action {
-            AfterShot::OpenEditor | AfterShot::Upload => {
+        match self.settings.after_shot {
+            AfterShot::OpenEditor => {
                 self.editor = Some(Editor::new(img, "Screenshot"));
                 self.show_main(ctx);
             }
@@ -601,10 +592,10 @@ impl App {
     fn handle_messages(&mut self, ctx: &Context) {
         while let Ok(m) = self.rx.try_recv() {
             match m {
-                Msg::Captured(kind, res) => {
+                Msg::Captured(res) => {
                     self.busy = None;
                     match res {
-                        CaptureResult::Image(img) => self.handle_new_image(ctx, img, kind),
+                        CaptureResult::Image(img) => self.handle_new_image(ctx, img),
                         CaptureResult::Cancelled => {}
                         CaptureResult::Failed(e) => self.toast(ctx, e),
                     }
@@ -625,7 +616,7 @@ impl App {
                         CaptureResult::Image(img) => match self.previous_area {
                             Some(r) => {
                                 let cut = self.crop_full(ctx, &img, r);
-                                self.handle_new_image(ctx, cut, CaptureKind::Area);
+                                self.handle_new_image(ctx, cut);
                             }
                             None => self.overlay = Some(Overlay::new(img)),
                         },
@@ -639,7 +630,6 @@ impl App {
                     let cmd = match action {
                         Some(Action::CaptureArea) => Some(Command::Capture(CaptureKind::Area)),
                         Some(Action::CaptureFrozenArea) => Some(Command::Capture(CaptureKind::FrozenArea)),
-                        Some(Action::CaptureAreaUpload) => Some(Command::Capture(CaptureKind::AreaUpload)),
                         Some(Action::CaptureFullscreen) => Some(Command::Capture(CaptureKind::Fullscreen)),
                         Some(Action::CaptureFullscreenDelayed) => Some(Command::Capture(CaptureKind::FullscreenDelayed)),
                         Some(Action::OpenEditor) => Some(Command::OpenLatest),
@@ -668,7 +658,7 @@ impl App {
         let Some(ed) = &self.editor else { return };
         match cmd {
             Cmd::Save => {
-                let img = ed.flattened(&self.font);
+                let img = ed.flattened(&self.font, self.settings.editor_shadow);
                 let ext = match self.settings.image_format {
                     crate::settings::ImageFormat::Jpeg => "jpg",
                     _ => "png",
@@ -696,7 +686,7 @@ impl App {
                 }
             }
             Cmd::Copy => {
-                let img = ed.flattened(&self.font);
+                let img = ed.flattened(&self.font, self.settings.editor_shadow);
                 let mut s = self.settings.clone();
                 s.clipboard_flags |= crate::settings::COPY_IMAGE;
                 match capture::copy_to_clipboard(&img, &s, None) {
@@ -705,7 +695,7 @@ impl App {
                 }
             }
             Cmd::External => {
-                let img = ed.flattened(&self.font);
+                let img = ed.flattened(&self.font, self.settings.editor_shadow);
                 let p = std::env::temp_dir().join(format!("{} {}.png", APP_NAME, chrono::Local::now().format("%H-%M-%S")));
                 match img.save(&p) {
                     Ok(()) => {
@@ -758,9 +748,9 @@ impl App {
                 ui.add_space(10.0);
                 ui.label(RichText::new(APP_NAME).size(30.0).strong().color(pal.text));
                 ui.label(RichText::new(t("Take a screenshot, mark it up, save or copy it.")).size(14.0).color(pal.hint));
-                ui.add_space(26.0);
+                ui.add_space(44.0);
             });
-            let hk = |a: Action| self.settings.hotkey(a).map(|k| k.display()).unwrap_or_default();
+            let hk = |a: Action| self.settings.hotkey(a).map(|k| k.parts()).unwrap_or_default();
             let tiles = [
                 (Icon::CaptureArea, t("Capture Area"), hk(Action::CaptureArea), Command::Capture(CaptureKind::Area)),
                 (Icon::Fullscreen, t("Capture Fullscreen"), hk(Action::CaptureFullscreen), Command::Capture(CaptureKind::Fullscreen)),
@@ -785,26 +775,28 @@ impl App {
                     egui::pos2(left + (i % cols) as f32 * (tile.x + gap), top + (i / cols) as f32 * (tile.y + gap)),
                     tile,
                 );
-                let resp = ui.interact(r, ui.id().with(("tile", i)), Sense::click());
-                let lift = if resp.hovered() { -2.0 } else { 0.0 };
-                let r = r.translate(vec2(0.0, lift));
+                let resp = ui.interact(r, ui.id().with(("tile", i)), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                let hov = theme::hover_amount(ctx, resp.id, resp.hovered());
                 theme::glass(ui.painter(), r, 18, &pal, Some(bd));
                 let p = ui.painter();
-                if resp.hovered() {
-                    p.rect_filled(r, 18.0, pal.hover);
-                }
+                // under the pointer the tile lightens behind a see-through
+                // veil, inside its hairline border
+                p.rect_filled(r.shrink(1.0), 17.0, theme::hover_veil(&pal, hov));
                 // one-ink icons on a frosted white chip; the chip lights up in
                 // the accent colour under the pointer (red while recording)
                 let recording = *cmd == Command::RecordVideo && self.recorder.is_some();
-                let chip = Rect::from_center_size(egui::pos2(r.center().x, r.top() + 36.0), vec2(44.0, 44.0));
+                // without a shortcut the icon and name sit a little lower, centred
+                let dy = if key.is_empty() { 6.0 } else { 0.0 };
+                let chip = Rect::from_center_size(egui::pos2(r.center().x, r.top() + 32.0 + dy), vec2(44.0, 44.0));
                 let (fill, border, ic) = if recording {
                     (Color32::from_rgb(0xff, 0x3b, 0x30), Color32::TRANSPARENT, Color32::WHITE)
-                } else if resp.hovered() {
-                    (pal.accent, Color32::TRANSPARENT, Color32::WHITE)
-                } else if pal.dark {
-                    (Color32::from_white_alpha(26), Color32::from_white_alpha(40), Color32::WHITE)
                 } else {
-                    (Color32::from_white_alpha(210), pal.border, pal.text)
+                    let rest = if pal.dark {
+                        (Color32::from_white_alpha(26), Color32::from_white_alpha(40), Color32::WHITE)
+                    } else {
+                        (Color32::from_white_alpha(210), pal.border, pal.text)
+                    };
+                    (theme::mix(rest.0, pal.accent, hov), theme::mix(rest.1, Color32::TRANSPARENT, hov), theme::mix(rest.2, Color32::WHITE, hov))
                 };
                 p.rect_filled(chip, 12.0, fill);
                 p.rect_stroke(chip, 12.0, Stroke::new(1.0_f32, border), egui::StrokeKind::Inside);
@@ -812,9 +804,11 @@ impl App {
                 // long translations shrink a little to fit the tile
                 let lw = ui.fonts(|f| f.layout_no_wrap(label.to_string(), egui::FontId::proportional(14.0), pal.text).size().x);
                 let size = if lw > tile.x - 20.0 { (14.0 * (tile.x - 20.0) / lw).max(10.0) } else { 14.0 };
-                p.text(egui::pos2(r.center().x, r.top() + 76.0), Align2::CENTER_CENTER, *label, egui::FontId::proportional(size), pal.text);
-                let k = if key.is_empty() { t("Not set").to_string() } else { key.clone() };
-                p.text(egui::pos2(r.center().x, r.top() + 97.0), Align2::CENTER_CENTER, k, egui::FontId::proportional(12.0), pal.hint);
+                p.text(egui::pos2(r.center().x, r.top() + 71.0 + dy), Align2::CENTER_CENTER, *label, egui::FontId::proportional(size), pal.text);
+                // the shortcut as keycaps; nothing when there is none
+                if !key.is_empty() {
+                    theme::keycaps(p, egui::pos2(r.center().x, r.top() + 96.0), key, &pal);
+                }
                 if resp.clicked() {
                     chosen = Some(*cmd);
                 }
@@ -825,8 +819,15 @@ impl App {
                 let w = 3.0 * 160.0 + 16.0;
                 ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
                 for (label, cmd) in [(t("Open…"), Command::Open), (t("Open Latest Image"), Command::OpenLatest), (t("Preferences…"), Command::Preferences)] {
-                    let b = egui::Button::new(RichText::new(label).color(pal.text)).min_size(vec2(160.0, 32.0)).corner_radius(10.0).fill(pal.card);
-                    if ui.add(b).clicked() {
+                    let (r, resp) = ui.allocate_exact_size(vec2(160.0, 32.0), Sense::click());
+                    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+                    let hov = theme::hover_amount(ctx, resp.id, resp.hovered());
+                    let p = ui.painter();
+                    p.rect_filled(r, 10.0, pal.card);
+                    p.rect_filled(r, 10.0, theme::hover_veil(&pal, hov));
+                    p.rect_stroke(r, 10.0, Stroke::new(1.0_f32, pal.border), egui::StrokeKind::Inside);
+                    p.text(r.center(), Align2::CENTER_CENTER, label, egui::FontId::proportional(14.0), pal.text);
+                    if resp.clicked() {
                         chosen = Some(cmd);
                     }
                 }
@@ -986,7 +987,7 @@ impl App {
             if let Some(r) = res {
                 self.previous_area = Some(r);
                 let cut = self.crop_full(ctx, &ov.image, r);
-                self.handle_new_image(ctx, cut, CaptureKind::FrozenArea);
+                self.handle_new_image(ctx, cut);
             }
             self.end_capture(ctx);
         }
