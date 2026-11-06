@@ -1,0 +1,506 @@
+{
+  "version": 1,
+  "values": [
+    {
+      "name": "settings tabs kept",
+      "group": "settings window",
+      "value": "General, Advanced, Appearance, Hotkeys, Fonts",
+      "source": "function 0x100051ad8 (default toolbar: General, Advanced, Appearance, Hotkeys, Fonts, Account, Feedback; last two removed on request)"
+    },
+    {
+      "name": "settings tabs removed",
+      "group": "settings window",
+      "value": "Account, Feedback",
+      "source": "function 0x100051ad8"
+    },
+    {
+      "name": "settings window width",
+      "group": "settings window",
+      "value": 500,
+      "unit": "pt",
+      "source": "function 0x100050214 (double 500.0)"
+    },
+    {
+      "name": "settings tab content height",
+      "group": "settings window",
+      "value": 372,
+      "unit": "pt",
+      "source": "function 0x100050214 (double 372.0)"
+    },
+    {
+      "name": "settings toolbar height",
+      "group": "settings window",
+      "value": 62,
+      "unit": "pt",
+      "estimated": true
+    },
+    {
+      "name": "hint text colour",
+      "group": "settings window",
+      "value": "#606060",
+      "source": "function 0x10012a4a4 (CFString 606060)"
+    },
+    {
+      "name": "after screenshot",
+      "group": "general",
+      "value": "Open editor",
+      "source": "function 0x1000d5fa0 (enum default 0)"
+    },
+    {
+      "name": "sound effects",
+      "group": "general",
+      "value": false,
+      "source": "function 0x1000d5fa0"
+    },
+    {
+      "name": "after upload",
+      "group": "general",
+      "value": "Copy site link",
+      "source": "function 0x1000d5fa0 (enum default 1)"
+    },
+    {
+      "name": "close after upload",
+      "group": "general",
+      "value": true,
+      "source": "function 0x1000d5fa0"
+    },
+    {
+      "name": "open in browser",
+      "group": "general",
+      "value": true,
+      "source": "function 0x1000d5fa0"
+    },
+    {
+      "name": "short links",
+      "group": "general",
+      "value": false,
+      "source": "function 0x1000d5fa0"
+    },
+    {
+      "name": "apply OCR",
+      "group": "general",
+      "value": false,
+      "source": "function 0x1000d5fa0"
+    },
+    {
+      "name": "external image editor",
+      "group": "general",
+      "value": "/System/Applications/Preview.app",
+      "source": "function 0x1000d5fa0"
+    },
+    {
+      "name": "launch at login",
+      "group": "general",
+      "value": false,
+      "source": "function 0x1000d5fa0"
+    },
+    {
+      "name": "image file format",
+      "group": "advanced",
+      "value": "PNG",
+      "source": "function 0x1000e8cec (enum default 1 of JPEG/PNG/Auto)"
+    },
+    {
+      "name": "JPEG quality",
+      "group": "advanced",
+      "value": 100,
+      "unit": "%",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "JPEG quality min",
+      "group": "advanced",
+      "value": 50,
+      "unit": "%",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "JPEG quality max",
+      "group": "advanced",
+      "value": 100,
+      "unit": "%",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "autosave screenshots",
+      "group": "advanced",
+      "value": false,
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "autosave to Movies",
+      "group": "advanced",
+      "value": false,
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "shrink retina snaps",
+      "group": "advanced",
+      "value": false,
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "video file format",
+      "group": "advanced",
+      "value": "MPEG",
+      "source": "function 0x1000e8cec (enum default 0)"
+    },
+    {
+      "name": "GIF frames per second",
+      "group": "advanced",
+      "value": 10,
+      "unit": "fps",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "GIF FPS min",
+      "group": "advanced",
+      "value": 1,
+      "unit": "fps",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "GIF FPS max",
+      "group": "advanced",
+      "value": 30,
+      "unit": "fps",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "GIF quality",
+      "group": "advanced",
+      "value": 100,
+      "unit": "%",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "GIF quality min",
+      "group": "advanced",
+      "value": 10,
+      "unit": "%",
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "clipboard copy flags",
+      "group": "advanced",
+      "value": 1,
+      "source": "function 0x1000e8cec (1 = Image)"
+    },
+    {
+      "name": "drag and drop copy flags",
+      "group": "advanced",
+      "value": 7,
+      "source": "function 0x1000e8cec (Image + URL + Path)"
+    },
+    {
+      "name": "filename template",
+      "group": "advanced",
+      "value": "<app name> %W %Y-%m-%d %H-%M-%S",
+      "source": "function 0x1000e8cec (CFString at 0x1000e92c8, brand word replaced)"
+    },
+    {
+      "name": "apply template to opened files",
+      "group": "advanced",
+      "value": false,
+      "source": "function 0x1000e8cec"
+    },
+    {
+      "name": "save folder",
+      "group": "advanced",
+      "value": "~/Pictures/<app name>",
+      "source": "function 0x10012a4a4 (CFString at 0x10012baf8, brand word replaced)"
+    },
+    {
+      "name": "show magnifier",
+      "group": "appearance",
+      "value": true,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "highlight windows",
+      "group": "appearance",
+      "value": true,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "window shadow",
+      "group": "appearance",
+      "value": true,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "click to snap a window",
+      "group": "appearance",
+      "value": true,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "show hints (capture)",
+      "group": "appearance",
+      "value": true,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "show hints (status bar)",
+      "group": "appearance",
+      "value": true,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "hide animation",
+      "group": "appearance",
+      "value": false,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "hide all notifications",
+      "group": "appearance",
+      "value": false,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "editor tooltips",
+      "group": "appearance",
+      "value": true,
+      "source": "function 0x1000f0930"
+    },
+    {
+      "name": "capture area",
+      "group": "hotkeys",
+      "value": "⌥⌘5",
+      "source": "function 0x10007b9cc (mask 0x180000)"
+    },
+    {
+      "name": "capture frozen area",
+      "group": "hotkeys",
+      "value": "⌥⌘8",
+      "source": "function 0x10007b9cc"
+    },
+    {
+      "name": "capture area and upload",
+      "group": "hotkeys",
+      "value": "⌥⌘7",
+      "source": "function 0x10007b9cc"
+    },
+    {
+      "name": "capture fullscreen",
+      "group": "hotkeys",
+      "value": "⌥⌘6",
+      "source": "function 0x10007b9cc"
+    },
+    {
+      "name": "open latest image",
+      "group": "hotkeys",
+      "value": "⌥⌘0",
+      "source": "function 0x10007b9cc"
+    },
+    {
+      "name": "fullscreen after delay",
+      "group": "hotkeys",
+      "value": "Not set",
+      "source": "function 0x10007b9cc (⌥⌘9 created disabled at 0x10007bbb4)"
+    },
+    {
+      "name": "record video",
+      "group": "hotkeys",
+      "value": "Not set",
+      "source": "function 0x10007b9cc (created disabled at 0x10007bc4c)"
+    },
+    {
+      "name": "delayed capture",
+      "group": "capture",
+      "value": 10,
+      "unit": "s",
+      "source": "SettingsWindow.strings 'Fullscreen after 10s:'"
+    },
+    {
+      "name": "editor colour",
+      "group": "editor",
+      "value": "#FF0000",
+      "source": "function 0x10006a8a8 ([NSColor redColor] at 0x10006a998)"
+    },
+    {
+      "name": "editor line width",
+      "group": "editor",
+      "value": 6,
+      "unit": "px",
+      "source": "function 0x10006a8a8 (fmov 6.0)"
+    },
+    {
+      "name": "editor line width min",
+      "group": "editor",
+      "value": 1,
+      "unit": "px",
+      "source": "function 0x10028c5cc"
+    },
+    {
+      "name": "editor line width max",
+      "group": "editor",
+      "value": 12,
+      "unit": "px",
+      "source": "function 0x10028c5cc"
+    },
+    {
+      "name": "editor shadow",
+      "group": "editor",
+      "value": true,
+      "source": "function 0x10006a8a8"
+    },
+    {
+      "name": "editor first tool",
+      "group": "editor",
+      "value": "Arrow",
+      "source": "function 0x10006a8a8 ('btnEditor_arrow')"
+    },
+    {
+      "name": "palette",
+      "group": "editor",
+      "value": "e504c3, e50404, 53e504, 1f63be, ffea00, ff7200, 898989, 000000, ffffff",
+      "source": "function around 0x1000df338"
+    },
+    {
+      "name": "blur radius",
+      "group": "editor",
+      "value": 8,
+      "unit": "px",
+      "estimated": true
+    },
+    {
+      "name": "undo steps",
+      "group": "editor",
+      "value": 40,
+      "estimated": true
+    },
+    {
+      "name": "capture mouse clicks",
+      "group": "video",
+      "value": true,
+      "source": "function 0x10009bc14"
+    },
+    {
+      "name": "capture mouse cursor",
+      "group": "video",
+      "value": true,
+      "source": "function 0x10009bc14"
+    },
+    {
+      "name": "magnifier",
+      "group": "capture",
+      "value": "15 px shown 8×",
+      "estimated": true
+    },
+    {
+      "name": "text style default",
+      "group": "editor",
+      "value": "Outline (matches the original's 'Shadow&outline' default on)",
+      "estimated": true
+    },
+    {
+      "name": "theme",
+      "group": "appearance",
+      "value": "Automatic (follows the system), Light or Dark",
+      "estimated": true
+    },
+    {
+      "name": "panel corner radius",
+      "group": "appearance",
+      "value": 14,
+      "unit": "pt",
+      "estimated": true
+    },
+    {
+      "name": "arrow unit",
+      "group": "editor",
+      "value": "0.7 × line width",
+      "source": "function 0x1007b2d00 (constant 0x1009013f0)"
+    },
+    {
+      "name": "arrow head shape",
+      "group": "editor",
+      "value": "(7.92, ±1.14) → (5.7, ±2.0) → (4.7, ±2.65) → tip, × unit",
+      "source": "function 0x1007b2d00 (constants 0x10090d728..0x10090d738)"
+    },
+    {
+      "name": "arrow short-length shrink",
+      "group": "editor",
+      "value": "12 × unit",
+      "source": "function 0x1007b2d00"
+    },
+    {
+      "name": "arrow tail half-width",
+      "group": "editor",
+      "value": "min(width / 5, width / 9)",
+      "source": "function 0x1007b2d00"
+    },
+    {
+      "name": "arrow minimum length",
+      "group": "editor",
+      "value": 2,
+      "unit": "px",
+      "source": "function 0x1007b2d00"
+    },
+    {
+      "name": "arrow light shade",
+      "group": "editor",
+      "value": 1.04,
+      "source": "code near 0x1007b1d7c"
+    },
+    {
+      "name": "arrow dark shade",
+      "group": "editor",
+      "value": -0.08,
+      "source": "code near 0x1007b1d7c"
+    },
+    {
+      "name": "text size per line width",
+      "group": "editor",
+      "value": 3.5,
+      "source": "code 0x10079a984 (round, min 4, even)"
+    },
+    {
+      "name": "text size default",
+      "group": "editor",
+      "value": 20,
+      "unit": "px",
+      "source": "code 0x10079a984 with width 6"
+    },
+    {
+      "name": "text minimum size",
+      "group": "editor",
+      "value": 4,
+      "unit": "px",
+      "source": "code 0x10079a988"
+    },
+    {
+      "name": "text outline width divisor",
+      "group": "editor",
+      "value": 2.6,
+      "source": "code 0x10079a9a4 (constant 0x100907e3c)"
+    },
+    {
+      "name": "text outline black above colour sum",
+      "group": "editor",
+      "value": 2.82353,
+      "source": "code 0x10079a1a8 (constant 0x100907d84)"
+    },
+    {
+      "name": "text with arrow attach",
+      "group": "editor",
+      "value": 1.3,
+      "unit": "× half-size",
+      "source": "code 0x10076fd84"
+    },
+    {
+      "name": "crop dim",
+      "group": "editor",
+      "value": "black at 30 %",
+      "source": "code 0x100775c28 (constant 0x100904c20)"
+    },
+    {
+      "name": "text size range",
+      "group": "editor",
+      "value": "10–120 px (rebuild's own slider)",
+      "estimated": true
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+# build output
+/target/
+# pictures taken while checking the layout
+/shots/
+.DS_Store
