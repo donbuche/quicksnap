@@ -1,5 +1,40 @@
-# build output
+# --- Rust / Cargo ---
 /target/
-# pictures taken while checking the layout
+**/*.rs.bk
+*.pdb
+
+# --- Packaging output (scripts/package-macos.sh) ---
+/dist/
+*.dmg
+*.iconset/
+
+# --- Local working files ---
+# raw pictures taken while checking the layout (README images live in docs/screenshots)
 /shots/
+*.log
+
+# --- macOS ---
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# --- Editors / IDEs ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Secrets (signing / notarization) ---
+.env
+.env.*
+*.p12
+*.cer
+*.mobileprovision

@@ -18,6 +18,15 @@ mod theme;
 
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().collect();
+
+    // `--write-icon <file.png> <size>`: render the app icon to a PNG and exit
+    // (used by scripts/package-macos.sh to build the .icns).
+    if let Some(i) = args.iter().position(|a| a == "--write-icon") {
+        let path = args.get(i + 1).expect("--write-icon <file.png> <size>");
+        let size: u32 = args.get(i + 2).and_then(|s| s.parse().ok()).unwrap_or(1024);
+        appicon::render(size).save(path).expect("could not write icon");
+        return Ok(());
+    }
     let screenshot = args
         .iter()
         .position(|a| a == "--screenshot")
