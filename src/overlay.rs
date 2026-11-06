@@ -2,6 +2,7 @@
 //! borderless window on top, and the person drags out the part to keep. Shows
 //! the magnifier and size hints when those Appearance options are on.
 
+use crate::i18n::t;
 use egui::{pos2, vec2, Align2, Color32, Context, FontId, Pos2, Rect, Sense, Stroke, TextureHandle, TextureOptions};
 use image::RgbaImage;
 
@@ -124,7 +125,7 @@ impl Overlay {
                     p,
                     pos2(full.center().x, full.min.y + 40.0),
                     Align2::CENTER_TOP,
-                    "Drag to select an area · Click to keep the whole screen · Hold ⇧ for a square · Esc to cancel",
+                    t("Drag to select an area · Click to keep the whole screen · Hold ⇧ for a square · Esc to cancel"),
                 );
             }
         });

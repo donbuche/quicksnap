@@ -38,6 +38,8 @@ pub enum Kind {
     Pen { pts: Vec<Pos2>, highlighter: bool },
     Text { pos: Pos2, text: String, size: f32, style: TextStyle },
     Bubble { tail: Pos2, pos: Pos2, text: String, size: f32 },
+    /// Hides what is underneath (blurs the picture inside `r`).
+    Blur { r: Rect },
 }
 
 #[derive(Clone, Debug)]
@@ -48,6 +50,8 @@ pub enum Prim {
     Poly { pts: Vec<Pos2>, color: Color32 },
     Text { pos: Pos2, text: String, size: f32, color: Color32 },
     DarkenOutside { r: Rect },
+    /// The picture inside `r`, strongly blurred (see `redact_small`).
+    Blur { r: Rect },
 }
 
 
@@ -154,29 +158,16 @@ fn rounded_rect_points(r: Rect, radius: f32) -> Vec<Pos2> {
     pts
 }
 
-/// Arrow geometry from the original's ArrowRenderer (sub_1007b2d00):
-/// laid out along the arrow with the tip at distance L, unit k = 0.7 × width,
-/// shrunk by f = 12k / L when the arrow is shorter than 12k. Head outline
-/// (behind the tip, ± across): (7.92, 1.14) → (5.7, 2.0) → (4.7, 2.65) → tip,
-/// all × k / f; the tail half-width is min(width / (5f), width / 9).
-/// Arrows shorter than 2 px are not drawn.
-/// The two halves are shaded (sub_1007b1c04, around 0x1007b1d7c): one half
-/// takes colour × 1.04 (capped), the other that minus 0.08.
-pub const ARROW_K: f32 = 0.7;
-pub const ARROW_SHORT: f32 = 12.0;
+/// Classic arrow: a straight shaft as thick as the line width ending in a
+/// triangular head whose barbs sweep slightly back past the shaft.
+/// Proportions, relative to the head length H: half-width 0.53 H, barbs
+/// reach 0.14 H further back than where the shaft joins. H is 3 × width
+/// (at least 10 px); short arrows scale the head down so the shaft shows.
 pub const ARROW_MIN_LEN: f32 = 2.0;
-pub const ARROW_HEAD: [(f32, f32); 3] = [(7.92, 1.14), (5.7, 2.0), (4.7, 2.65)];
-pub const ARROW_LIGHT: f32 = 1.04;
-pub const ARROW_DARK: f32 = 0.08;
-
-fn shade(c: Color32, light: bool) -> Color32 {
-    let f = |v: u8| {
-        let l = (v as f32 / 255.0 * ARROW_LIGHT).min(1.0);
-        let x = if light { l } else { (l - ARROW_DARK).max(0.0) };
-        (x * 255.0).round() as u8
-    };
-    Color32::from_rgba_unmultiplied(f(c.r()), f(c.g()), f(c.b()), c.a())
-}
+pub const ARROW_HEAD_LEN: f32 = 3.0;
+pub const ARROW_HEAD_MIN: f32 = 10.0;
+pub const ARROW_HEAD_HALF: f32 = 0.53;
+pub const ARROW_NOTCH: f32 = 0.14;
 
 fn arrow_prims(a: Pos2, b: Pos2, w: f32, color: Color32) -> Vec<Prim> {
     let d = b - a;
@@ -186,22 +177,21 @@ fn arrow_prims(a: Pos2, b: Pos2, w: f32, color: Color32) -> Vec<Prim> {
     }
     let dir = d / len;
     let n = vec2(-dir.y, dir.x);
-    let k = ARROW_K * w;
-    let f = if len < ARROW_SHORT * k { ARROW_SHORT * k / len } else { 1.0 };
-    let kk = k / f;
-    let tail = (w / 5.0 / f).min(w / 9.0);
-    let at = |back: f32, side: f32| b - dir * (back * kk) + n * (side * kk);
-    let [(x0, y0), (x1, y1), (x2, y2)] = ARROW_HEAD;
-    // side +1 and side -1 halves, each star-shaped from the tip
-    let half = |sg: f32| -> Vec<Pos2> {
-        vec![b, at(x2, sg * y2), at(x1, sg * y1), at(x0, sg * y0), a + n * (sg * tail), a]
-    };
-    // the half on the upper side of the screen gets the lighter shade
-    let plus_is_up = n.y < 0.0;
-    vec![
-        Prim::Poly { pts: half(1.0), color: shade(color, plus_is_up) },
-        Prim::Poly { pts: half(-1.0), color: shade(color, !plus_is_up) },
-    ]
+    let mut head = (ARROW_HEAD_LEN * w).max(ARROW_HEAD_MIN);
+    let mut shaft = w / 2.0;
+    // keep a bit of shaft visible on short arrows
+    let room = len / 1.2;
+    if head > room {
+        let f = room / head;
+        head *= f;
+        shaft *= f.max(0.5);
+    }
+    let half = head * ARROW_HEAD_HALF;
+    let join = head * (1.0 - ARROW_NOTCH);
+    let at = |back: f32, side: f32| b - dir * back + n * side;
+    // one outline, star-shaped from the tip
+    let pts = vec![b, at(head, half), at(join, shaft), a + n * shaft, a - n * shaft, at(join, -shaft), at(head, -half)];
+    vec![Prim::Poly { pts, color }]
 }
 
 pub fn is_light(c: Color32) -> bool {
@@ -322,6 +312,7 @@ impl Shape {
         match &self.kind {
             Kind::Arrow { a, b } | Kind::Line { a, b } => Rect::from_two_pos(*a, *b).expand(pad + self.width),
             Kind::Rect { r, .. } | Kind::Ellipse { r, .. } => r.expand(pad),
+            Kind::Blur { r } => *r,
             Kind::Pen { pts, highlighter } => {
                 let w = if *highlighter { self.width * 3.0 } else { self.width };
                 Rect::from_points(pts).expand(w / 2.0 + 2.0)
@@ -358,10 +349,72 @@ impl Shape {
                 pts.windows(2).any(|s| seg_dist(p, s[0], s[1]) <= ww) || pts.iter().any(|q| q.distance(p) <= ww)
             }
             Kind::Text { .. } => self.bounds(font).expand(tol * 0.5).contains(p),
+            Kind::Blur { r } => r.expand(tol * 0.5).contains(p),
             Kind::Bubble { tail, pos, text, size } => {
                 let r = text_rect(font, *pos, text, *size);
                 r.expand(tol * 0.5).contains(p) || seg_dist(p, bubble_attach(r, *tail), *tail) <= w + self.width
             }
+        }
+    }
+
+    /// Whether the selection shows a frame around the item. Lines and arrows
+    /// only show their two end points.
+    pub fn shows_frame(&self) -> bool {
+        !matches!(self.kind, Kind::Arrow { .. } | Kind::Line { .. })
+    }
+
+    /// The grab points of a selected item, in picture pixels. `frame` is the
+    /// selection frame around it.
+    pub fn handles(&self, frame: Rect) -> Vec<(Handle, Pos2)> {
+        let at_corners = |r: Rect| corners(r).into_iter().enumerate().map(|(i, c)| (Handle::Corner(i), c)).collect();
+        match &self.kind {
+            Kind::Arrow { a, b } | Kind::Line { a, b } => vec![(Handle::Start, *a), (Handle::End, *b)],
+            Kind::Bubble { tail, .. } => vec![(Handle::End, *tail)],
+            Kind::Rect { r, .. } | Kind::Ellipse { r, .. } | Kind::Blur { r } => at_corners(*r),
+            _ => at_corners(frame),
+        }
+    }
+
+    /// Reshapes `orig` (the item as it was when the drag began) by dragging
+    /// handle `h` by `delta`. `frame` is the selection frame at that moment;
+    /// `uniform` (⇧) keeps the proportions or snaps lines to 45°.
+    pub fn drag_handle(&mut self, orig: &Shape, h: Handle, frame: Rect, delta: Vec2, uniform: bool) {
+        match (&mut self.kind, &orig.kind, h) {
+            (Kind::Arrow { a, b } | Kind::Line { a, b }, Kind::Arrow { a: oa, b: ob } | Kind::Line { a: oa, b: ob }, _) => {
+                if h == Handle::Start {
+                    let p = *oa + delta;
+                    *a = if uniform { snap45(*ob, p) } else { p };
+                } else {
+                    let p = *ob + delta;
+                    *b = if uniform { snap45(*oa, p) } else { p };
+                }
+            }
+            (Kind::Bubble { tail, .. }, Kind::Bubble { tail: ot, pos, .. }, _) => {
+                let p = *ot + delta;
+                *tail = if uniform { snap45(*pos, p) } else { p };
+            }
+            (
+                Kind::Rect { r, .. } | Kind::Ellipse { r, .. } | Kind::Blur { r },
+                Kind::Rect { r: or, .. } | Kind::Ellipse { r: or, .. } | Kind::Blur { r: or },
+                Handle::Corner(i),
+            ) => {
+                let c = corners(*or);
+                let anchor = c[3 - i];
+                let p = c[i] + delta;
+                *r = Rect::from_two_pos(anchor, if uniform { square(anchor, p) } else { p });
+            }
+            (Kind::Pen { pts, .. }, Kind::Pen { pts: opts, .. }, Handle::Corner(i)) => {
+                let (anchor, sx, sy) = corner_scale(frame, i, delta, uniform);
+                *pts = opts.iter().map(|q| scale_about(*q, anchor, sx, sy)).collect();
+            }
+            (Kind::Text { pos, size, .. }, Kind::Text { pos: op, size: os, .. }, Handle::Corner(i)) => {
+                // texts grow and shrink as a whole: the font size follows
+                let (anchor, k, _) = corner_scale(frame, i, delta, true);
+                *size = (os * k).clamp(TEXT_SIZE_MIN, TEXT_SIZE_MAX);
+                let k = *size / os;
+                *pos = scale_about(*op, anchor, k, k);
+            }
+            _ => {}
         }
     }
 
@@ -371,7 +424,7 @@ impl Shape {
                 *a += d;
                 *b += d;
             }
-            Kind::Rect { r, .. } | Kind::Ellipse { r, .. } => *r = r.translate(d),
+            Kind::Rect { r, .. } | Kind::Ellipse { r, .. } | Kind::Blur { r } => *r = r.translate(d),
             Kind::Pen { pts, .. } => pts.iter_mut().for_each(|p| *p += d),
             Kind::Text { pos, .. } => *pos += d,
             Kind::Bubble { tail, pos, .. } => {
@@ -406,7 +459,7 @@ impl Shape {
                             out.push(Prim::Text { pos: *pos + off * 0.6, text: text.clone(), size: *size, color: shade })
                         }
                     }
-                    Prim::DarkenOutside { .. } => {}
+                    Prim::DarkenOutside { .. } | Prim::Blur { .. } => {}
                 }
             }
         }
@@ -418,6 +471,7 @@ impl Shape {
         let c = self.color;
         let w = self.width;
         match &self.kind {
+            Kind::Blur { r } => vec![Prim::Blur { r: *r }],
             Kind::Arrow { a, b } => arrow_prims(*a, *b, w, c),
             Kind::Line { a, b } => vec![Prim::Stroke { pts: vec![*a, *b], width: w, color: c, closed: false }],
             Kind::Rect { r, filled, darken } => {
@@ -477,6 +531,41 @@ impl Shape {
             }
         }
     }
+}
+
+/// A grab point on a selected item.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Handle {
+    Start,
+    End,
+    /// 0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right
+    Corner(usize),
+}
+
+/// Corners in `Handle::Corner` order; corner `i` faces corner `3 - i`.
+pub fn corners(r: Rect) -> [Pos2; 4] {
+    [r.left_top(), r.right_top(), r.left_bottom(), r.right_bottom()]
+}
+
+/// Scale factors for dragging corner `i` of `frame` by `delta` with the
+/// opposite corner fixed. Never flips or collapses the item.
+fn corner_scale(frame: Rect, i: usize, delta: Vec2, uniform: bool) -> (Pos2, f32, f32) {
+    let c = corners(frame);
+    let anchor = c[3 - i];
+    let o = c[i] - anchor;
+    let n = o + delta;
+    let f = |n: f32, o: f32| if o.abs() > 1e-3 { (n / o).max(0.05) } else { 1.0 };
+    let (sx, sy) = (f(n.x, o.x), f(n.y, o.y));
+    if uniform {
+        let s = (sx + sy) / 2.0;
+        (anchor, s, s)
+    } else {
+        (anchor, sx, sy)
+    }
+}
+
+fn scale_about(p: Pos2, anchor: Pos2, sx: f32, sy: f32) -> Pos2 {
+    pos2(anchor.x + (p.x - anchor.x) * sx, anchor.y + (p.y - anchor.y) * sy)
 }
 
 /// Constrain a drag end point to 45° steps (⇧ for lines and arrows).
@@ -579,6 +668,8 @@ pub fn bake(img: &RgbaImage, shapes: &[Shape], font: &AnnotFont) -> RgbaImage {
         }
     }
     let full = Rect::from_min_size(Pos2::ZERO, vec2(w as f32, h as f32));
+    // the blurred picture, made only when some item needs it
+    let mut blurred: Option<RgbaImage> = None;
     for s in shapes {
         for prim in s.prims(font) {
             match prim {
@@ -605,6 +696,26 @@ pub fn bake(img: &RgbaImage, shapes: &[Shape], font: &AnnotFont) -> RgbaImage {
                     }
                 }
                 Prim::Text { pos, text, size, color } => draw_text(&mut px, font, pos, &text, size, color),
+                Prim::Blur { r } => {
+                    let b = blurred.get_or_insert_with(|| {
+                        image::imageops::resize(&redact_small(img), w, h, image::imageops::FilterType::Triangle)
+                    });
+                    let r = r.intersect(full);
+                    let d = px.data_mut();
+                    for y in (r.min.y.round() as u32)..(r.max.y.round() as u32).min(h) {
+                        for x in (r.min.x.round() as u32)..(r.max.x.round() as u32).min(w) {
+                            let p = b.get_pixel(x, y);
+                            let a = p[3] as u32;
+                            let i = ((y * w + x) * 4) as usize;
+                            d[i..i + 4].copy_from_slice(&[
+                                (p[0] as u32 * a / 255) as u8,
+                                (p[1] as u32 * a / 255) as u8,
+                                (p[2] as u32 * a / 255) as u8,
+                                p[3],
+                            ]);
+                        }
+                    }
+                }
                 Prim::DarkenOutside { r } => {
                     for part in outside_parts(full, r) {
                         if let Some(rr) = tiny_skia::Rect::from_ltrb(part.min.x, part.min.y, part.max.x, part.max.y) {
@@ -642,6 +753,26 @@ pub fn outside_parts(full: Rect, r: Rect) -> Vec<Rect> {
 }
 
 /// Blur a region of the picture in place (three box-blur passes; radius estimated).
+/// How strongly the Blur tool hides things: the picture is shrunk by a factor
+/// that grows with its size (text a few dozen pixels tall ends up one or two
+/// pixels tall, so it can't be read back) and then softened.
+pub const REDACT_DIVISOR: f32 = 90.0;
+pub const REDACT_MIN: f32 = 6.0;
+pub const REDACT_MAX: f32 = 24.0;
+
+/// A small, blurred copy of the whole picture. Stretched back to full size it
+/// gives the look of a heavy blur; the editor draws it as a texture and
+/// `bake` scales it up.
+pub fn redact_small(img: &RgbaImage) -> RgbaImage {
+    let (w, h) = img.dimensions();
+    let f = (w.min(h) as f32 / REDACT_DIVISOR).clamp(REDACT_MIN, REDACT_MAX);
+    let sw = ((w as f32 / f).ceil() as u32).max(2);
+    let sh = ((h as f32 / f).ceil() as u32).max(2);
+    let mut small = image::imageops::resize(img, sw, sh, image::imageops::FilterType::Triangle);
+    blur_region(&mut small, Rect::from_min_size(Pos2::ZERO, vec2(sw as f32, sh as f32)), 1);
+    small
+}
+
 pub fn blur_region(img: &mut RgbaImage, r: Rect, radius: i32) {
     let (w, h) = (img.width() as i32, img.height() as i32);
     let x0 = (r.min.x.floor() as i32).clamp(0, w);
@@ -708,6 +839,21 @@ pub fn blur_region(img: &mut RgbaImage, r: Rect, radius: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn blur_hides_fine_detail_in_the_saved_image() {
+        // 1-px black and white stripes: after the blur they must be a flat grey
+        let img = RgbaImage::from_fn(400, 300, |x, _| if x % 2 == 0 { image::Rgba([0, 0, 0, 255]) } else { image::Rgba([255, 255, 255, 255]) });
+        let r = Rect::from_min_max(pos2(100.0, 100.0), pos2(300.0, 200.0));
+        let blur = Shape { kind: Kind::Blur { r }, color: Color32::RED, width: 4.0, shadow: true };
+        let out = bake(&img, &[blur], &AnnotFont::load(None));
+        for x in 120..280 {
+            let v = out.get_pixel(x, 150)[0] as i32;
+            assert!((v - 128).abs() < 30, "pixel {x} is {v}");
+        }
+        // outside the area nothing changes
+        assert_eq!(out.get_pixel(10, 10), img.get_pixel(10, 10));
+    }
 
     #[test]
     fn baking_draws_shapes_and_text() {

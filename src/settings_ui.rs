@@ -2,6 +2,7 @@
 //! Advanced, Appearance, Hotkeys, Fonts — the original's last two tabs,
 //! Account and Feedback, are left out on request) and a form for each.
 
+use crate::i18n::{self, t, tf};
 use egui::{vec2, Align2, Color32, Context, CornerRadius, FontId, Frame, Key, Margin, Rect, RichText, Sense, Stroke, Ui};
 
 use crate::hotkeys::{Action, Hotkey};
@@ -33,13 +34,13 @@ pub enum Tab {
 
 impl Tab {
     pub const ALL: [Tab; 5] = [Tab::General, Tab::Advanced, Tab::Appearance, Tab::Hotkeys, Tab::Fonts];
-    fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
-            Tab::General => "General",
-            Tab::Advanced => "Advanced",
-            Tab::Appearance => "Appearance",
-            Tab::Hotkeys => "Hotkeys",
-            Tab::Fonts => "Fonts",
+            Tab::General => t("General"),
+            Tab::Advanced => t("Advanced"),
+            Tab::Appearance => t("Appearance"),
+            Tab::Hotkeys => t("Hotkeys"),
+            Tab::Fonts => t("Fonts"),
         }
     }
     fn icon(self) -> Icon {
@@ -112,14 +113,14 @@ impl SettingsUi {
         if self.confirm_reset {
             egui::Modal::new(egui::Id::new("confirm_reset")).show(ctx, |ui| {
                 ui.set_width(280.0);
-                ui.heading("Reset all settings");
-                ui.label("ALL settings in the application will be reset");
+                ui.heading(t("Reset all settings"));
+                ui.label(t("ALL settings in the application will be reset"));
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Cancel").clicked() {
+                    if ui.button(t("Cancel")).clicked() {
                         self.confirm_reset = false;
                     }
-                    if ui.button("Reset").clicked() {
+                    if ui.button(t("Reset")).clicked() {
                         *s = Settings::default();
                         ch.reset = true;
                         ch.hotkeys = true;
@@ -171,7 +172,11 @@ impl SettingsUi {
 
     fn general(&mut self, ui: &mut Ui, s: &mut Settings, ch: &mut Changes) {
         let mut sec = crate::theme::section_begin(ui);
-        row(ui, "After screenshot:", |ui| {
+        row(ui, t("Language:"), |ui| {
+            i18n::lang_picker(ui, &mut s.language, false);
+        });
+        sec = crate::theme::section_next(ui, sec);
+        row(ui, t("After screenshot:"), |ui| {
             egui::ComboBox::from_id_salt("after_shot")
                 .width(230.0)
                 .selected_text(s.after_shot.label())
@@ -183,38 +188,38 @@ impl SettingsUi {
                             s.after_shot = a;
                         }
                         if !enabled {
-                            r.on_disabled_hover_text(NO_ACCOUNT);
+                            r.on_disabled_hover_text(t(NO_ACCOUNT));
                         }
                     }
                 });
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.sound_effects, "Sound effects");
+            ui.checkbox(&mut s.sound_effects, t("Sound effects"));
         });
         sec = crate::theme::section_next(ui, sec);
         ui.add_enabled_ui(false, |ui| {
-            row(ui, "After upload:", |ui| {
+            row(ui, t("After upload:"), |ui| {
                 let label = match s.after_upload {
-                    AfterUpload::DoNotCopy => "Do not copy",
-                    AfterUpload::CopySiteLink => "Copy site link",
-                    AfterUpload::CopyDirectLink => "Copy direct image link",
+                    AfterUpload::DoNotCopy => t("Do not copy"),
+                    AfterUpload::CopySiteLink => t("Copy site link"),
+                    AfterUpload::CopyDirectLink => t("Copy direct image link"),
                 };
                 egui::ComboBox::from_id_salt("after_upload").width(230.0).selected_text(label).show_ui(ui, |_| {});
             });
             row(ui, "", |ui| {
-                ui.checkbox(&mut s.open_in_browser, "Open in browser");
+                ui.checkbox(&mut s.open_in_browser, t("Open in browser"));
             });
             row(ui, "", |ui| {
-                ui.checkbox(&mut s.short_links, "Short links");
+                ui.checkbox(&mut s.short_links, t("Short links"));
             });
             row(ui, "", |ui| {
-                ui.checkbox(&mut s.apply_ocr, "Apply text recognition (in development)");
+                ui.checkbox(&mut s.apply_ocr, t("Apply text recognition (in development)"));
             });
         })
         .response
-        .on_disabled_hover_text(NO_ACCOUNT);
+        .on_disabled_hover_text(t(NO_ACCOUNT));
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "External Image Editor:", |ui| {
+        row(ui, t("External Image Editor:"), |ui| {
             let name = std::path::Path::new(&s.external_editor)
                 .file_stem()
                 .and_then(|n| n.to_str())
@@ -223,11 +228,11 @@ impl SettingsUi {
             egui::ComboBox::from_id_salt("ext_editor").width(230.0).selected_text(name.clone()).show_ui(ui, |ui| {
                 let _ = ui.selectable_label(true, name);
                 ui.separator();
-                if ui.selectable_label(false, "Choose application...").clicked() {
+                if ui.selectable_label(false, t("Choose application...")).clicked() {
                     if let Some(p) = rfd::FileDialog::new()
-                        .set_title("Choose application")
+                        .set_title(t("Choose application"))
                         .set_directory("/Applications")
-                        .add_filter("Application", &["app"])
+                        .add_filter(t("Application"), &["app"])
                         .pick_file()
                     {
                         s.external_editor = p.display().to_string();
@@ -236,14 +241,14 @@ impl SettingsUi {
             });
         });
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Status bar:", |ui| {
-            if ui.checkbox(&mut s.start_at_launch, "Launch at login").changed() {
+        row(ui, t("Status bar:"), |ui| {
+            if ui.checkbox(&mut s.start_at_launch, t("Launch at login")).changed() {
                 ch.start_at_launch = true;
             }
         });
         ui.add_space(10.0);
         ui.vertical_centered(|ui| {
-            if ui.button(format!("About {APP_NAME}")).clicked() {
+            if ui.button(tf("About {}", &[&APP_NAME])).clicked() {
                 ch.about = true;
             }
         });
@@ -253,31 +258,31 @@ impl SettingsUi {
     fn advanced(&mut self, ui: &mut Ui, s: &mut Settings, ch: &mut Changes) {
         let mut sec = crate::theme::section_begin(ui);
         let _ = ch;
-        row(ui, "Image File Format:", |ui| {
+        row(ui, t("Image File Format:"), |ui| {
             let label = match s.image_format {
                 ImageFormat::Jpeg => "JPEG",
                 ImageFormat::Png => "PNG",
-                ImageFormat::Auto => "Auto (smaller size)",
+                ImageFormat::Auto => t("Auto (smaller size)"),
             };
             egui::ComboBox::from_id_salt("img_fmt").width(180.0).selected_text(label).show_ui(ui, |ui| {
                 ui.selectable_value(&mut s.image_format, ImageFormat::Jpeg, "JPEG");
                 ui.selectable_value(&mut s.image_format, ImageFormat::Png, "PNG");
-                ui.selectable_value(&mut s.image_format, ImageFormat::Auto, "Auto (smaller size)");
+                ui.selectable_value(&mut s.image_format, ImageFormat::Auto, t("Auto (smaller size)"));
             });
         });
-        row(ui, "JPEG Quality:", |ui| {
+        row(ui, t("JPEG Quality:"), |ui| {
             ui.add_enabled(
                 s.image_format != ImageFormat::Png,
                 egui::Slider::new(&mut s.jpeg_quality, JPEG_QUALITY_MIN..=JPEG_QUALITY_MAX).suffix("%"),
             );
         });
-        row(ui, "Save folder:", |ui| {
+        row(ui, t("Save folder:"), |ui| {
             ui.add(egui::Label::new(RichText::new(&s.save_folder).color(HINT_COLOR)).truncate())
                 .on_hover_text(&s.save_folder);
         });
         row(ui, "", |ui| {
-            if ui.button("Choose...").clicked() {
-                if let Some(p) = rfd::FileDialog::new().set_title("Choose save folder").set_directory(s.save_dir()).pick_folder() {
+            if ui.button(t("Choose...")).clicked() {
+                if let Some(p) = rfd::FileDialog::new().set_title(t("Choose save folder")).set_directory(s.save_dir()).pick_folder() {
                     let home = dirs::home_dir().map(|h| h.display().to_string()).unwrap_or_default();
                     let p = p.display().to_string();
                     s.save_folder = if !home.is_empty() && p.starts_with(&home) { format!("~{}", &p[home.len()..]) } else { p };
@@ -285,13 +290,13 @@ impl SettingsUi {
             }
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.always_save, "Autosave screenshots");
+            ui.checkbox(&mut s.always_save, t("Autosave screenshots"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.shrink_retina, "Shrink Retina snaps");
+            ui.checkbox(&mut s.shrink_retina, t("Shrink Retina snaps"));
         });
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Video File Format:", |ui| {
+        row(ui, t("Video File Format:"), |ui| {
             let label = match s.video_format {
                 VideoFormat::Mpeg => "MPEG",
                 VideoFormat::Gif => "GIF",
@@ -305,92 +310,92 @@ impl SettingsUi {
         row(ui, "GIF FPS:", |ui| {
             ui.add_enabled(gif, egui::Slider::new(&mut s.gif_fps, GIF_FPS_MIN..=GIF_FPS_MAX));
         });
-        row(ui, "GIF Quality:", |ui| {
+        row(ui, t("GIF Quality:"), |ui| {
             ui.add_enabled(gif, egui::Slider::new(&mut s.gif_quality, GIF_QUALITY_MIN..=GIF_QUALITY_MAX).suffix("%"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.always_save_movie, "Autosave to \"Movies\" folder");
+            ui.checkbox(&mut s.always_save_movie, t("Autosave to \"Movies\" folder"));
         });
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Drag and drop copy:", |ui| flags(ui, &mut s.drag_drop_flags));
-        row(ui, "Copy to clipboard:", |ui| flags(ui, &mut s.clipboard_flags));
+        row(ui, t("Drag and drop copy:"), |ui| flags(ui, &mut s.drag_drop_flags));
+        row(ui, t("Copy to clipboard:"), |ui| flags(ui, &mut s.clipboard_flags));
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Filename template:", |ui| {
+        row(ui, t("Filename template:"), |ui| {
             ui.add(egui::TextEdit::singleline(&mut s.filename_template).desired_width(260.0));
         });
         ui.horizontal(|ui| {
             ui.add_space(70.0);
             ui.label(
                 RichText::new(
-                    "%Y — 4-digit year,  %y — 2-digit year, %m — month, %d — day,\n%H — hour, %M — minutes, %S — seconds, %W — window title,\n%R — 5 random symbols, %T - file type",
+                    t("%Y — 4-digit year,  %y — 2-digit year, %m — month, %d — day,\n%H — hour, %M — minutes, %S — seconds, %W — window title,\n%R — 5 random symbols, %T - file type"),
                 )
                 .size(10.0)
                 .color(HINT_COLOR),
             );
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.apply_template_to_opened, "Apply to reopened files");
+            ui.checkbox(&mut s.apply_template_to_opened, t("Apply to reopened files"));
         });
         sec = crate::theme::section_next(ui, sec);
         row(ui, "", |ui| {
-            if ui.button("Reset all settings").clicked() {
+            if ui.button(t("Reset all settings")).clicked() {
                 self.confirm_reset = true;
             }
         });
         row(ui, "", |ui| {
-            ui.label(RichText::new("ALL settings in the application will be reset").size(10.0).color(HINT_COLOR));
+            ui.label(RichText::new(t("ALL settings in the application will be reset")).size(10.0).color(HINT_COLOR));
         });
         crate::theme::section_end(ui, sec);
     }
 
     fn appearance(&mut self, ui: &mut Ui, s: &mut Settings) {
         let mut sec = crate::theme::section_begin(ui);
-        row(ui, "Theme:", |ui| {
+        row(ui, t("Theme:"), |ui| {
             use crate::theme::ThemeChoice;
-            for (v, name) in [(ThemeChoice::System, "Automatic"), (ThemeChoice::Light, "Light"), (ThemeChoice::Dark, "Dark")] {
+            for (v, name) in [(ThemeChoice::System, t("Automatic")), (ThemeChoice::Light, t("Light")), (ThemeChoice::Dark, t("Dark"))] {
                 ui.selectable_value(&mut s.theme, v, name);
             }
         });
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Capture area:", |ui| {
-            ui.checkbox(&mut s.show_magnifier, "Show magnifier");
+        row(ui, t("Capture area:"), |ui| {
+            ui.checkbox(&mut s.show_magnifier, t("Show magnifier"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.highlight_windows, "Highlight window under cursor");
+            ui.checkbox(&mut s.highlight_windows, t("Highlight window under cursor"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.window_shadow, "Add shadow to window");
+            ui.checkbox(&mut s.window_shadow, t("Add shadow to window"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.shot_on_click, "Click to snap a window");
+            ui.checkbox(&mut s.shot_on_click, t("Click to snap a window"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.show_tip, "Show hints");
+            ui.checkbox(&mut s.show_tip, t("Show hints"));
         });
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Status bar:", |ui| {
-            ui.checkbox(&mut s.show_startup_tooltip, "Show hints");
+        row(ui, t("Status bar:"), |ui| {
+            ui.checkbox(&mut s.show_startup_tooltip, t("Show hints"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.hide_animation, "Hide animation");
+            ui.checkbox(&mut s.hide_animation, t("Hide animation"));
         });
         row(ui, "", |ui| {
-            ui.checkbox(&mut s.dont_show_notifications, "Hide all notifications");
+            ui.checkbox(&mut s.dont_show_notifications, t("Hide all notifications"));
         });
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Editor:", |ui| {
-            ui.checkbox(&mut s.show_tooltips_editor, "Show tooltips");
+        row(ui, t("Editor:"), |ui| {
+            ui.checkbox(&mut s.show_tooltips_editor, t("Show tooltips"));
         });
         ui.add_enabled_ui(false, |ui| {
             row(ui, "", |ui| {
-                ui.checkbox(&mut s.close_after_upload, "Close the editor after uploading");
+                ui.checkbox(&mut s.close_after_upload, t("Close the editor after uploading"));
             });
             row(ui, "", |ui| {
-                ui.checkbox(&mut s.allow_default_browser, "Use default browser to sign in");
+                ui.checkbox(&mut s.allow_default_browser, t("Use default browser to sign in"));
             });
         })
         .response
-        .on_disabled_hover_text(NO_ACCOUNT);
+        .on_disabled_hover_text(t(NO_ACCOUNT));
         crate::theme::section_end(ui, sec);
     }
 
@@ -400,13 +405,13 @@ impl SettingsUi {
             self.hotkey_row(ui, s, a, ch);
         }
         sec = crate::theme::section_next(ui, sec);
-        row(ui, "Video record hotkeys:", |_| {});
+        row(ui, t("Video record hotkeys:"), |_| {});
         for a in Action::VIDEO_ROWS {
             self.hotkey_row(ui, s, a, ch);
         }
         ui.add_space(6.0);
         row(ui, "", |ui| {
-            if ui.button("Default").on_hover_text("Restore the default hotkeys").clicked() {
+            if ui.button(t("Default")).on_hover_text(t("Restore the default hotkeys")).clicked() {
                 s.hotkeys = crate::hotkeys::default_hotkeys();
                 ch.hotkeys = true;
                 self.recording = None;
@@ -420,11 +425,11 @@ impl SettingsUi {
         let rec = self.recording == Some(a);
         row(ui, a.label(), |ui| {
             let text = if rec {
-                RichText::new("Press hotkey with ⌘/⌃").color(crate::theme::pal(ui.ctx()).accent)
+                RichText::new(t("Press hotkey with ⌘/⌃")).color(crate::theme::pal(ui.ctx()).accent)
             } else {
                 match &current {
                     Some(k) => RichText::new(k.display()),
-                    None => RichText::new("Not set").color(HINT_COLOR),
+                    None => RichText::new(t("Not set")).color(HINT_COLOR),
                 }
             };
             let b = egui::Button::new(text).min_size(vec2(170.0, 22.0)).selected(rec);
@@ -432,7 +437,7 @@ impl SettingsUi {
                 self.recording = if rec { None } else { Some(a) };
             }
             let del = ui.add_enabled(current.is_some(), egui::Button::new("✕").min_size(vec2(22.0, 22.0)));
-            if del.on_hover_text("Delete hotkey").clicked() {
+            if del.on_hover_text(t("Delete hotkey")).clicked() {
                 s.set_hotkey(a, None);
                 ch.hotkeys = true;
             }
@@ -483,10 +488,10 @@ impl SettingsUi {
         let name_of = |p: &str| {
             std::path::Path::new(p).file_stem().and_then(|n| n.to_str()).unwrap_or(p).to_string()
         };
-        row(ui, "Main font:", |ui| {
-            let cur = s.main_font.as_deref().map(name_of).unwrap_or_else(|| "Default".into());
+        row(ui, t("Main font:"), |ui| {
+            let cur = s.main_font.as_deref().map(name_of).unwrap_or_else(|| t("Default").into());
             egui::ComboBox::from_id_salt("main_font").width(220.0).selected_text(cur).show_ui(ui, |ui| {
-                if ui.selectable_label(s.main_font.is_none(), "Default").clicked() {
+                if ui.selectable_label(s.main_font.is_none(), t("Default")).clicked() {
                     s.main_font = None;
                     ch.fonts = true;
                 }
@@ -498,7 +503,7 @@ impl SettingsUi {
                 }
             });
         });
-        row(ui, "Additional fonts:", |ui| {
+        row(ui, t("Additional fonts:"), |ui| {
             ui.vertical(|ui| {
                 Frame::new()
                     .fill(ui.visuals().extreme_bg_color)
@@ -510,7 +515,7 @@ impl SettingsUi {
                         ui.set_max_width(220.0);
                         egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
                             if s.additional_fonts.is_empty() {
-                                ui.label(RichText::new("No additional fonts").color(HINT_COLOR));
+                                ui.label(RichText::new(t("No additional fonts")).color(HINT_COLOR));
                             }
                             for (i, f) in s.additional_fonts.iter().enumerate() {
                                 let sel = self.selected_font == Some(i);
@@ -522,11 +527,11 @@ impl SettingsUi {
                     });
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
-                    if ui.add(egui::Button::new("+").min_size(vec2(24.0, 20.0))).on_hover_text("Add font").clicked() {
+                    if ui.add(egui::Button::new("+").min_size(vec2(24.0, 20.0))).on_hover_text(t("Add font")).clicked() {
                         if let Some(files) = rfd::FileDialog::new()
-                            .set_title("Add font")
+                            .set_title(t("Add font"))
                             .set_directory("/Library/Fonts")
-                            .add_filter("Font", &["ttf", "otf", "ttc"])
+                            .add_filter(t("Font"), &["ttf", "otf", "ttc"])
                             .pick_files()
                         {
                             for f in files {
@@ -541,7 +546,7 @@ impl SettingsUi {
                     let can_remove = self.selected_font.map(|i| i < s.additional_fonts.len()).unwrap_or(false);
                     if ui
                         .add_enabled(can_remove, egui::Button::new("−").min_size(vec2(24.0, 20.0)))
-                        .on_hover_text("Remove font")
+                        .on_hover_text(t("Remove font"))
                         .clicked()
                     {
                         if let Some(i) = self.selected_font.take() {
@@ -557,12 +562,12 @@ impl SettingsUi {
         });
         row(ui, "", |ui| {
             ui.label(
-                RichText::new("Attention: some fonts could not correctly displayed in the editor.").size(10.0).color(HINT_COLOR),
+                RichText::new(t("Attention: some fonts could not correctly displayed in the editor.")).size(10.0).color(HINT_COLOR),
             );
         });
         ui.add_space(6.0);
         row(ui, "", |ui| {
-            if ui.button("Reset fonts").clicked() {
+            if ui.button(t("Reset fonts")).clicked() {
                 s.main_font = None;
                 s.additional_fonts.clear();
                 self.selected_font = None;
@@ -579,7 +584,10 @@ fn row(ui: &mut Ui, label: &str, add: impl FnOnce(&mut Ui)) {
         if !label.is_empty() {
             let pal = crate::theme::pal(ui.ctx());
             let col = if ui.is_enabled() { pal.text } else { pal.hint.gamma_multiply(0.7) };
-            ui.painter().text(r.right_center() - vec2(2.0, 0.0), Align2::RIGHT_CENTER, label, FontId::proportional(13.0), col);
+            // long translations shrink a little to stay inside the label column
+            let w = ui.fonts(|f| f.layout_no_wrap(label.to_string(), FontId::proportional(13.0), col).size().x);
+            let size = if w > LABEL_W - 4.0 { (13.0 * (LABEL_W - 4.0) / w).max(9.5) } else { 13.0 };
+            ui.painter().text(r.right_center() - vec2(2.0, 0.0), Align2::RIGHT_CENTER, label, FontId::proportional(size), col);
         }
         add(ui);
     });
@@ -595,7 +603,7 @@ fn separator(ui: &mut Ui) {
 }
 
 fn flags(ui: &mut Ui, v: &mut u8) {
-    for (bit, name) in [(COPY_IMAGE, "Image"), (COPY_URL, "URL"), (COPY_PATH, "Path")] {
+    for (bit, name) in [(COPY_IMAGE, t("Image")), (COPY_URL, "URL"), (COPY_PATH, t("Path"))] {
         let mut on = *v & bit != 0;
         let enabled = bit != COPY_URL;
         let r = ui.add_enabled(enabled, egui::Checkbox::new(&mut on, name));
@@ -607,7 +615,7 @@ fn flags(ui: &mut Ui, v: &mut u8) {
             }
         }
         if !enabled {
-            r.on_disabled_hover_text(NO_ACCOUNT);
+            r.on_disabled_hover_text(t(NO_ACCOUNT));
         }
     }
 }

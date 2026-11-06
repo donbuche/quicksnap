@@ -194,6 +194,57 @@ pub fn render(n: u32) -> RgbaImage {
     out
 }
 
+/// The menu-bar glyph: the same lens and aperture drawn in a single ink
+/// (black on transparent), meant to be used as a macOS template image.
+pub fn render_template(n: u32) -> RgbaImage {
+    let mut px = Pixmap::new(n, n).expect("pixmap");
+    let s = n as f32;
+    let (cx, cy) = (s / 2.0, s / 2.0);
+    let id = Transform::identity();
+    let mut ink = Paint::default();
+    ink.anti_alias = true;
+    ink.set_color(Color::BLACK);
+
+    // Outer barrel ring.
+    let ring = Stroke { width: s * 0.085, ..Default::default() };
+    px.stroke_path(&circle(cx, cy, s * 0.44), &ink, &ring, id, None);
+
+    // Aperture: a seven-sided opening with one blade edge running from each
+    // corner out to the ring.
+    let nb = BLADE_COLORS.len();
+    let r0 = s * 0.15;
+    let rot = -std::f32::consts::FRAC_PI_2 + 0.25;
+    let v: Vec<(f32, f32)> = (0..nb)
+        .map(|i| {
+            let a = rot + i as f32 * std::f32::consts::TAU / nb as f32;
+            (cx + r0 * a.cos(), cy + r0 * a.sin())
+        })
+        .collect();
+    let mut mask = Mask::new(n, n).expect("mask");
+    mask.fill_path(&circle(cx, cy, s * 0.42), FillRule::Winding, true, id);
+    let blade = Stroke { width: s * 0.06, ..Default::default() };
+    for i in 0..nb {
+        let a = v[i];
+        let b = v[(i + 1) % nb];
+        let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+        let l = (dx * dx + dy * dy).sqrt();
+        let far = (b.0 + dx / l * s, b.1 + dy / l * s);
+        let mut pb = PathBuilder::new();
+        pb.move_to(a.0, a.1);
+        pb.line_to(far.0, far.1);
+        if let Some(edge) = pb.finish() {
+            px.stroke_path(&edge, &ink, &blade, id, Some(&mask));
+        }
+    }
+
+    let mut out = RgbaImage::new(n, n);
+    for (i, p) in px.pixels().iter().enumerate() {
+        let c = p.demultiply();
+        out.as_mut()[i * 4..i * 4 + 4].copy_from_slice(&[c.red(), c.green(), c.blue(), c.alpha()]);
+    }
+    out
+}
+
 pub fn icon_data(n: u32) -> egui::IconData {
     let img = render(n);
     egui::IconData { rgba: img.into_raw(), width: n, height: n }

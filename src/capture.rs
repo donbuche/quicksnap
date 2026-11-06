@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 
 use crate::settings::{self, ImageFormat, Settings, VideoFormat, COPY_IMAGE, COPY_PATH};
+use crate::i18n::{t, tf};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CaptureKind {
@@ -80,14 +81,14 @@ pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
     cmd.arg(&file);
     match cmd.status() {
         Ok(_) => {}
-        Err(e) => return CaptureResult::Failed(format!("Could not start the capture tool: {e}")),
+        Err(e) => return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e])),
     }
     if !file.exists() {
         return CaptureResult::Cancelled;
     }
     let img = match image::open(&file) {
         Ok(i) => i.to_rgba8(),
-        Err(e) => return CaptureResult::Failed(format!("Could not read the capture: {e}")),
+        Err(e) => return CaptureResult::Failed(tf("Could not read the capture: {}", &[&e])),
     };
     let _ = std::fs::remove_file(&file);
     let img = if opt.shrink_retina && opt.retina_scale > 1.0 {
@@ -142,7 +143,7 @@ fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
 pub fn save_to_folder(img: &RgbaImage, s: &Settings, title: &str) -> Result<PathBuf, String> {
     let (bytes, ext) = encode(img, s)?;
     let dir = s.save_dir();
-    std::fs::create_dir_all(&dir).map_err(|e| format!("Can't create {}: {e}", dir.display()))?;
+    std::fs::create_dir_all(&dir).map_err(|e| tf("Can't create {}: {}", &[&dir.display(), &e]))?;
     let stem = settings::apply_template(&s.filename_template, title, ext);
     let path = unique_path(&dir, &stem, ext);
     std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
@@ -167,23 +168,23 @@ pub fn copy_to_clipboard(img: &RgbaImage, s: &Settings, saved: Option<&Path>) ->
             bytes: std::borrow::Cow::Borrowed(img.as_raw()),
         })
         .map_err(|e| e.to_string())?;
-        return Ok("Screenshot copied to clipboard");
+        return Ok(t("Screenshot copied to clipboard"));
     }
     if s.clipboard_flags & COPY_PATH != 0 {
         if let Some(p) = saved {
             cb.set_text(p.display().to_string()).map_err(|e| e.to_string())?;
-            return Ok("Path copied to clipboard");
+            return Ok(t("Path copied to clipboard"));
         }
     }
-    Ok("Nothing to copy")
+    Ok(t("Nothing to copy"))
 }
 
 pub fn image_from_clipboard() -> Result<RgbaImage, String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     match cb.get_image() {
         Ok(data) => RgbaImage::from_raw(data.width as u32, data.height as u32, data.bytes.into_owned())
-            .ok_or_else(|| "Clipboard doesn't contain image".to_string()),
-        Err(_) => Err("Clipboard doesn't contain image".to_string()),
+            .ok_or_else(|| t("Clipboard doesn't contain image").to_string()),
+        Err(_) => Err(t("Clipboard doesn't contain image").to_string()),
     }
 }
 
@@ -214,7 +215,7 @@ impl Recorder {
             cmd.arg("-x");
         }
         cmd.arg(&file);
-        let child = cmd.spawn().map_err(|e| format!("Could not start recording: {e}"))?;
+        let child = cmd.spawn().map_err(|e| tf("Could not start recording: {}", &[&e]))?;
         Ok(Recorder { child, file, started: std::time::Instant::now() })
     }
 
@@ -225,7 +226,7 @@ impl Recorder {
         }
         let _ = self.child.wait();
         if !self.file.exists() {
-            return Err("The recording was cancelled".into());
+            return Err(t("The recording was cancelled").into());
         }
         let mut out = self.file.clone();
         if s.video_format == VideoFormat::Gif {

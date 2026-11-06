@@ -11,6 +11,7 @@ use std::sync::Arc;
 use crate::capture::{self, CaptureKind, CaptureOptions, CaptureResult, Recorder};
 use crate::editor::{self, Cmd, Editor};
 use crate::hotkeys::{Action, GlobalKeys};
+use crate::i18n::{self, t, tf, Lang};
 use crate::icons::{self, Icon};
 use crate::overlay::Overlay;
 use crate::settings::{AfterShot, Settings, APP_NAME};
@@ -36,8 +37,13 @@ enum Command {
     OpenClipboard,
     OpenLatest,
     Preferences,
+    ShowWindow,
     Quit,
 }
+
+/// How long a capture waits after hiding QuickSnap's windows, so they are
+/// really off screen when the picture is taken.
+const HIDE_BEFORE_CAPTURE: std::time::Duration = std::time::Duration::from_millis(250);
 
 struct Toast {
     text: String,
@@ -73,10 +79,20 @@ pub struct App {
     about: bool,
     screenshot: Option<ScreenshotJob>,
     started: bool,
+    /// Set by Quit; otherwise closing the main window only hides it.
+    quitting: bool,
+    /// The main window is hidden (closed to the menu bar, or out of the way
+    /// of a capture).
+    hidden: bool,
+    /// The main window was hidden only for the capture in progress and comes
+    /// back when it ends.
+    restore_after_capture: bool,
     /// For checking layouts: draw one view in the main window
     /// (QUICKSNAP_VIEW=home or prefs-general / prefs-advanced / ...).
     view: Option<String>,
     applied_theme: Option<theme::ThemeChoice>,
+    /// The language the menu-bar menu was built in.
+    tray_lang: Option<Lang>,
     logo: Option<egui::TextureHandle>,
     blobs: Option<(bool, egui::TextureHandle)>,
 }
@@ -227,11 +243,22 @@ impl App {
             about: false,
             screenshot: screenshot.map(|p| ScreenshotJob { path: p, frame: 0, requested: false }),
             started: false,
+            quitting: false,
+            hidden: false,
+            restore_after_capture: false,
             view: std::env::var("QUICKSNAP_VIEW").ok(),
             applied_theme: None,
+            tray_lang: None,
             logo: None,
             blobs: None,
         };
+        if let Ok(l) = std::env::var("QUICKSNAP_LANG") {
+            app.settings.language = match l.as_str() {
+                "es" => Lang::Es,
+                "ca" => Lang::Ca,
+                _ => Lang::En,
+            };
+        }
         if let Ok(t) = std::env::var("QUICKSNAP_THEME") {
             app.settings.theme = if t == "dark" { theme::ThemeChoice::Dark } else { theme::ThemeChoice::Light };
         }
@@ -289,28 +316,32 @@ impl App {
             let _ = menu.append(&item);
             item
         };
-        add("Capture Area", Some(Command::Capture(CaptureKind::Area)), true);
-        add("Capture Fullscreen", Some(Command::Capture(CaptureKind::Fullscreen)), true);
-        let rec = add("Record Video", Some(Command::RecordVideo), true);
+        add(&tf("Show {}", &[&APP_NAME]), Some(Command::ShowWindow), true);
         let _ = menu.append(&PredefinedMenuItem::separator());
-        add("Open…", Some(Command::Open), true);
-        add("Open from Clipboard", Some(Command::OpenClipboard), true);
-        add("Upload from Clipboard", None, false);
-        add("Open Latest Image", Some(Command::OpenLatest), true);
+        add(t("Capture Area"), Some(Command::Capture(CaptureKind::Area)), true);
+        add(t("Capture Fullscreen"), Some(Command::Capture(CaptureKind::Fullscreen)), true);
+        let rec_label = if self.recorder.is_some() { t("Stop Recording") } else { t("Record Video") };
+        let rec = add(rec_label, Some(Command::RecordVideo), true);
         let _ = menu.append(&PredefinedMenuItem::separator());
-        add("Preferences…", Some(Command::Preferences), true);
+        add(t("Open…"), Some(Command::Open), true);
+        add(t("Open from Clipboard"), Some(Command::OpenClipboard), true);
+        add(t("Upload from Clipboard"), None, false);
+        add(t("Open Latest Image"), Some(Command::OpenLatest), true);
         let _ = menu.append(&PredefinedMenuItem::separator());
-        add("Quit", Some(Command::Quit), true);
+        add(t("Preferences…"), Some(Command::Preferences), true);
+        let _ = menu.append(&PredefinedMenuItem::separator());
+        add(t("Quit"), Some(Command::Quit), true);
         self.record_item = Some(rec);
 
-        // The lens-and-aperture app icon, in colour.
+        // One-ink lens-and-aperture glyph; as a template image macOS tints it
+        // to match the menu bar (dark or light).
         let n = 44u32;
-        let img = crate::appicon::render(n);
+        let img = crate::appicon::render_template(n);
         if let Ok(icon) = tray_icon::Icon::from_rgba(img.into_raw(), n, n) {
             self.tray = tray_icon::TrayIconBuilder::new()
                 .with_menu(Box::new(menu))
                 .with_icon(icon)
-                .with_icon_as_template(false)
+                .with_icon_as_template(true)
                 .with_tooltip(APP_NAME)
                 .build()
                 .ok();
@@ -325,6 +356,15 @@ impl App {
         }
     }
 
+    /// Brings the (possibly hidden) main window back to the front.
+    fn show_main(&mut self, ctx: &Context) {
+        self.hidden = false;
+        self.restore_after_capture = false;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+    }
+
     fn run(&mut self, ctx: &Context, cmd: Command) {
         match cmd {
             Command::Capture(kind) => self.start_capture(ctx, kind),
@@ -337,9 +377,9 @@ impl App {
                         Ok(r) => {
                             self.recorder = Some(r);
                             if let Some(i) = &self.record_item {
-                                i.set_text("Stop Recording");
+                                i.set_text(t("Stop Recording"));
                             }
-                            self.toast(ctx, "Recording the screen…");
+                            self.toast(ctx, t("Recording the screen…"));
                         }
                         Err(e) => self.toast(ctx, e),
                     }
@@ -348,11 +388,11 @@ impl App {
             Command::StopVideo => {
                 if let Some(r) = self.recorder.take() {
                     if let Some(i) = &self.record_item {
-                        i.set_text("Record Video");
+                        i.set_text(t("Record Video"));
                     }
                     match r.stop(&self.settings) {
                         Ok(p) => {
-                            self.toast(ctx, format!("Video saved to {}", p.display()));
+                            self.toast(ctx, tf("Video saved to {}", &[&p.display()]));
                             capture::reveal_in_finder(&p);
                         }
                         Err(e) => self.toast(ctx, e),
@@ -361,8 +401,8 @@ impl App {
             }
             Command::Open => {
                 if let Some(p) = rfd::FileDialog::new()
-                    .set_title("Open")
-                    .add_filter("Images", &["png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "webp"])
+                    .set_title(t("Open"))
+                    .add_filter(t("Images"), &["png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "webp"])
                     .pick_file()
                 {
                     match image::open(&p) {
@@ -371,30 +411,35 @@ impl App {
                             let mut ed = Editor::new(i.to_rgba8(), &title);
                             ed.source = Some(p);
                             self.editor = Some(ed);
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                            self.show_main(ctx);
                         }
-                        Err(e) => self.toast(ctx, format!("Can't open this file: {e}")),
+                        Err(e) => self.toast(ctx, tf("Can't open this file: {}", &[&e])),
                     }
                 }
             }
             Command::OpenClipboard => match capture::image_from_clipboard() {
                 Ok(img) => {
                     self.editor = Some(Editor::new(img, "Clipboard"));
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    self.show_main(ctx);
                 }
                 Err(e) => self.toast(ctx, e),
             },
             Command::OpenLatest => match &self.latest {
                 Some(img) => {
                     self.editor = Some(Editor::new(img.clone(), "Screenshot"));
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    self.show_main(ctx);
                 }
-                None => self.toast(ctx, "There is no screenshot yet"),
+                None => self.toast(ctx, t("There is no screenshot yet")),
             },
             Command::Preferences => {
                 self.prefs.open = true;
+                ctx.send_viewport_cmd_to(ViewportId::from_hash_of("preferences"), egui::ViewportCommand::Focus);
             }
-            Command::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+            Command::ShowWindow => self.show_main(ctx),
+            Command::Quit => {
+                self.quitting = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
         }
     }
 
@@ -408,6 +453,7 @@ impl App {
             return;
         }
         let opt = self.capture_options(ctx);
+        let wait = self.hide_for_capture(ctx);
         let tx = self.tx.clone();
         let c = ctx.clone();
         let frozen = kind == CaptureKind::FrozenArea;
@@ -416,6 +462,9 @@ impl App {
             _ => "Capturing…".to_string(),
         });
         std::thread::spawn(move || {
+            if wait {
+                std::thread::sleep(HIDE_BEFORE_CAPTURE);
+            }
             let msg = if frozen {
                 // freeze the screen first; selection happens in the overlay
                 let mut o = opt.clone();
@@ -435,13 +484,45 @@ impl App {
         }
         let mut opt = self.capture_options(ctx);
         opt.shrink_retina = false;
+        let wait = self.hide_for_capture(ctx);
         let tx = self.tx.clone();
         let c = ctx.clone();
         self.busy = Some("Capturing…".into());
         std::thread::spawn(move || {
+            if wait {
+                std::thread::sleep(HIDE_BEFORE_CAPTURE);
+            }
             let _ = tx.send(Msg::Previous(capture::capture(CaptureKind::Fullscreen, &opt)));
             c.request_repaint();
         });
+    }
+
+    /// Gets every QuickSnap window out of the way before a capture. Returns
+    /// whether something was on screen (the capture then waits a moment so
+    /// the windows are really gone).
+    fn hide_for_capture(&mut self, ctx: &Context) -> bool {
+        let was_shown = !self.hidden || self.prefs.open || self.about;
+        if !self.hidden {
+            self.hidden = true;
+            self.restore_after_capture = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
+        self.prefs.open = false;
+        self.prefs.recording = None;
+        self.about = false;
+        was_shown
+    }
+
+    /// After a capture: the main window comes back if it was hidden only for
+    /// it and nothing else (like the editor) brought it back already.
+    fn end_capture(&mut self, ctx: &Context) {
+        if self.restore_after_capture && self.hidden && self.overlay.is_none() {
+            self.hidden = false;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+        }
+        if self.overlay.is_none() {
+            self.restore_after_capture = false;
+        }
     }
 
     fn crop_full(&self, ctx: &Context, img: &RgbaImage, r: Rect) -> RgbaImage {
@@ -479,14 +560,13 @@ impl App {
         }
         let mut action = self.settings.after_shot;
         if kind == CaptureKind::AreaUpload || action == AfterShot::Upload {
-            self.toast(ctx, "Uploading needs a connected account; opening the editor instead");
+            self.toast(ctx, t("Uploading needs a connected account; opening the editor instead"));
             action = AfterShot::OpenEditor;
         }
         match action {
             AfterShot::OpenEditor | AfterShot::Upload => {
                 self.editor = Some(Editor::new(img, "Screenshot"));
-                ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
-                ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                self.show_main(ctx);
             }
             AfterShot::Save => {
                 let p = match saved.clone() {
@@ -494,7 +574,7 @@ impl App {
                     None => capture::save_to_folder(&img, &self.settings, ""),
                 };
                 match p {
-                    Ok(p) => self.toast(ctx, format!("Saved to {}", p.display())),
+                    Ok(p) => self.toast(ctx, tf("Saved to {}", &[&p.display()])),
                     Err(e) => self.toast(ctx, e),
                 }
             }
@@ -528,6 +608,7 @@ impl App {
                         CaptureResult::Cancelled => {}
                         CaptureResult::Failed(e) => self.toast(ctx, e),
                     }
+                    self.end_capture(ctx);
                 }
                 Msg::Frozen(res) => {
                     self.busy = None;
@@ -536,6 +617,7 @@ impl App {
                         CaptureResult::Cancelled => {}
                         CaptureResult::Failed(e) => self.toast(ctx, e),
                     }
+                    self.end_capture(ctx);
                 }
                 Msg::Previous(res) => {
                     self.busy = None;
@@ -550,6 +632,7 @@ impl App {
                         CaptureResult::Cancelled => {}
                         CaptureResult::Failed(e) => self.toast(ctx, e),
                     }
+                    self.end_capture(ctx);
                 }
                 Msg::Hotkey(id) => {
                     let action = self.keys.as_ref().and_then(|k| k.action_for(id));
@@ -599,7 +682,7 @@ impl App {
                 let dir = self.settings.save_dir();
                 let _ = std::fs::create_dir_all(&dir);
                 if let Some(p) = rfd::FileDialog::new()
-                    .set_title("Save image")
+                    .set_title(t("Save image"))
                     .set_directory(&dir)
                     .set_file_name(format!("{name}.{ext}"))
                     .add_filter("PNG", &["png"])
@@ -607,7 +690,7 @@ impl App {
                     .save_file()
                 {
                     match capture::save_to_path(&img, &self.settings, &p) {
-                        Ok(()) => self.toast(ctx, format!("Saved to {}", p.display())),
+                        Ok(()) => self.toast(ctx, tf("Saved to {}", &[&p.display()])),
                         Err(e) => self.toast(ctx, e),
                     }
                 }
@@ -617,7 +700,7 @@ impl App {
                 let mut s = self.settings.clone();
                 s.clipboard_flags |= crate::settings::COPY_IMAGE;
                 match capture::copy_to_clipboard(&img, &s, None) {
-                    Ok(_) => self.toast(ctx, "Image copied to clipboard"),
+                    Ok(_) => self.toast(ctx, t("Image copied to clipboard")),
                     Err(e) => self.toast(ctx, e),
                 }
             }
@@ -674,22 +757,22 @@ impl App {
                 ui.painter().image(logo.id(), r, Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), Color32::WHITE);
                 ui.add_space(10.0);
                 ui.label(RichText::new(APP_NAME).size(30.0).strong().color(pal.text));
-                ui.label(RichText::new("Take a screenshot, mark it up, save or copy it.").size(14.0).color(pal.hint));
+                ui.label(RichText::new(t("Take a screenshot, mark it up, save or copy it.")).size(14.0).color(pal.hint));
                 ui.add_space(26.0);
             });
             let hk = |a: Action| self.settings.hotkey(a).map(|k| k.display()).unwrap_or_default();
             let tiles = [
-                (Icon::CaptureArea, "Capture Area", hk(Action::CaptureArea), Command::Capture(CaptureKind::Area)),
-                (Icon::Fullscreen, "Capture Fullscreen", hk(Action::CaptureFullscreen), Command::Capture(CaptureKind::Fullscreen)),
-                (Icon::Timer, "Fullscreen after 10s", hk(Action::CaptureFullscreenDelayed), Command::Capture(CaptureKind::FullscreenDelayed)),
-                (Icon::Crop, "Capture Frozen Area", hk(Action::CaptureFrozenArea), Command::Capture(CaptureKind::FrozenArea)),
+                (Icon::CaptureArea, t("Capture Area"), hk(Action::CaptureArea), Command::Capture(CaptureKind::Area)),
+                (Icon::Fullscreen, t("Capture Fullscreen"), hk(Action::CaptureFullscreen), Command::Capture(CaptureKind::Fullscreen)),
+                (Icon::Timer, t("Fullscreen after 10s"), hk(Action::CaptureFullscreenDelayed), Command::Capture(CaptureKind::FullscreenDelayed)),
+                (Icon::Crop, t("Capture Frozen Area"), hk(Action::CaptureFrozenArea), Command::Capture(CaptureKind::FrozenArea)),
                 (
                     Icon::Video,
-                    if self.recorder.is_some() { "Stop Recording" } else { "Record Video" },
+                    if self.recorder.is_some() { t("Stop Recording") } else { t("Record Video") },
                     hk(Action::RecordVideo),
                     Command::RecordVideo,
                 ),
-                (Icon::Clipboard, "Open from Clipboard", hk(Action::OpenFromClipboard), Command::OpenClipboard),
+                (Icon::Clipboard, t("Open from Clipboard"), hk(Action::OpenFromClipboard), Command::OpenClipboard),
             ];
             let tile = vec2(180.0, 116.0);
             let gap = 16.0;
@@ -710,13 +793,27 @@ impl App {
                 if resp.hovered() {
                     p.rect_filled(r, 18.0, pal.hover);
                 }
+                // one-ink icons on a frosted white chip; the chip lights up in
+                // the accent colour under the pointer (red while recording)
                 let recording = *cmd == Command::RecordVideo && self.recorder.is_some();
-                let ic = if recording { Color32::from_rgb(0xff, 0x3b, 0x30) } else { pal.accent };
                 let chip = Rect::from_center_size(egui::pos2(r.center().x, r.top() + 36.0), vec2(44.0, 44.0));
-                p.rect_filled(chip, 12.0, Color32::from_rgba_unmultiplied(ic.r(), ic.g(), ic.b(), 34));
+                let (fill, border, ic) = if recording {
+                    (Color32::from_rgb(0xff, 0x3b, 0x30), Color32::TRANSPARENT, Color32::WHITE)
+                } else if resp.hovered() {
+                    (pal.accent, Color32::TRANSPARENT, Color32::WHITE)
+                } else if pal.dark {
+                    (Color32::from_white_alpha(26), Color32::from_white_alpha(40), Color32::WHITE)
+                } else {
+                    (Color32::from_white_alpha(210), pal.border, pal.text)
+                };
+                p.rect_filled(chip, 12.0, fill);
+                p.rect_stroke(chip, 12.0, Stroke::new(1.0_f32, border), egui::StrokeKind::Inside);
                 icons::paint(p, chip.shrink(9.0), *icon, ic);
-                p.text(egui::pos2(r.center().x, r.top() + 76.0), Align2::CENTER_CENTER, *label, egui::FontId::proportional(14.0), pal.text);
-                let k = if key.is_empty() { "Not set".to_string() } else { key.clone() };
+                // long translations shrink a little to fit the tile
+                let lw = ui.fonts(|f| f.layout_no_wrap(label.to_string(), egui::FontId::proportional(14.0), pal.text).size().x);
+                let size = if lw > tile.x - 20.0 { (14.0 * (tile.x - 20.0) / lw).max(10.0) } else { 14.0 };
+                p.text(egui::pos2(r.center().x, r.top() + 76.0), Align2::CENTER_CENTER, *label, egui::FontId::proportional(size), pal.text);
+                let k = if key.is_empty() { t("Not set").to_string() } else { key.clone() };
                 p.text(egui::pos2(r.center().x, r.top() + 97.0), Align2::CENTER_CENTER, k, egui::FontId::proportional(12.0), pal.hint);
                 if resp.clicked() {
                     chosen = Some(*cmd);
@@ -727,7 +824,7 @@ impl App {
             ui.horizontal(|ui| {
                 let w = 3.0 * 160.0 + 16.0;
                 ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
-                for (label, cmd) in [("Open…", Command::Open), ("Open Latest Image", Command::OpenLatest), ("Preferences…", Command::Preferences)] {
+                for (label, cmd) in [(t("Open…"), Command::Open), (t("Open Latest Image"), Command::OpenLatest), (t("Preferences…"), Command::Preferences)] {
                     let b = egui::Button::new(RichText::new(label).color(pal.text)).min_size(vec2(160.0, 32.0)).corner_radius(10.0).fill(pal.card);
                     if ui.add(b).clicked() {
                         chosen = Some(cmd);
@@ -736,7 +833,12 @@ impl App {
             });
             ui.add_space(12.0);
             ui.vertical_centered(|ui| {
-                ui.label(RichText::new("The same commands are in the menu-bar icon.").size(12.0).color(pal.hint));
+                ui.label(RichText::new(t("The same commands are in the menu-bar icon.")).size(12.0).color(pal.hint));
+            });
+            // language picker in the top-right corner
+            let picker = Rect::from_min_size(egui::pos2(full.right() - 136.0, full.top() + 14.0), vec2(122.0, 28.0));
+            ui.scope_builder(egui::UiBuilder::new().max_rect(picker).layout(egui::Layout::right_to_left(egui::Align::Center)), |ui| {
+                i18n::lang_picker(ui, &mut self.settings.language, false);
             });
         });
         if let Some(c) = chosen {
@@ -745,23 +847,21 @@ impl App {
     }
 
     fn top_strip(&mut self, ctx: &Context) {
+        // Only the recording indicator: a "Capturing…" pill would get in the
+        // way and end up in the screenshot itself.
         let recording = self.recorder.as_ref().map(|r| r.started.elapsed().as_secs());
-        if self.busy.is_none() && recording.is_none() {
+        if recording.is_none() {
             return;
         }
         let pal = theme::pal(ctx);
         let mut stop = false;
         let avail = ctx.available_rect();
         theme::floating(ctx, "status_pill", Align2::CENTER_TOP, egui::pos2(avail.center().x, avail.top() + 64.0), &pal, None, |ui| {
-            if let Some(b) = &self.busy {
-                ui.spinner();
-                ui.label(RichText::new(b).color(pal.text));
-            }
             if let Some(secs) = recording {
                 let (r, _) = ui.allocate_exact_size(vec2(14.0, 20.0), Sense::hover());
                 ui.painter().circle_filled(r.center(), 5.0, Color32::from_rgb(0xff, 0x3b, 0x30));
-                ui.label(RichText::new(format!("Recording {:02}:{:02}", secs / 60, secs % 60)).color(pal.text));
-                if ui.button("Stop").clicked() {
+                ui.label(RichText::new(tf("Recording {}", &[&format!("{:02}:{:02}", secs / 60, secs % 60)])).color(pal.text));
+                if ui.button(t("Stop")).clicked() {
                     stop = true;
                 }
                 ctx.request_repaint_after(std::time::Duration::from_millis(500));
@@ -806,7 +906,7 @@ impl App {
         if !self.prefs.open {
             return;
         }
-        let title = format!("{:?}", self.prefs.tab);
+        let title = self.prefs.tab.label().to_string();
         let prefs = &mut self.prefs;
         let settings = &mut self.settings;
         let ch = ctx.show_viewport_immediate(
@@ -815,6 +915,7 @@ impl App {
                 .with_title(title)
                 .with_inner_size([settings_ui::WINDOW_WIDTH, settings_ui::TOOLBAR_HEIGHT + settings_ui::CONTENT_HEIGHT])
                 .with_resizable(false)
+                .with_active(true)
                 .with_maximize_button(false)
                 .with_minimize_button(false),
             |vctx, _class| {
@@ -841,7 +942,7 @@ impl App {
             }
         }
         if ch.reset {
-            self.toast(ctx, "All settings have been reset");
+            self.toast(ctx, t("All settings have been reset"));
         }
         if ch.about {
             self.about = true;
@@ -887,6 +988,7 @@ impl App {
                 let cut = self.crop_full(ctx, &ov.image, r);
                 self.handle_new_image(ctx, cut, CaptureKind::FrozenArea);
             }
+            self.end_capture(ctx);
         }
     }
 
@@ -896,7 +998,7 @@ impl App {
         }
         let logo = self.logo(ctx);
         let mut open = true;
-        egui::Window::new(format!("About {APP_NAME}"))
+        egui::Window::new(tf("About {}", &[&APP_NAME]))
             .collapsible(false)
             .resizable(false)
             .open(&mut open)
@@ -905,9 +1007,9 @@ impl App {
                 ui.vertical_centered(|ui| {
                     ui.add(egui::Image::new(&logo).fit_to_exact_size(vec2(72.0, 72.0)));
                     ui.label(RichText::new(APP_NAME).size(20.0).strong());
-                    ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
+                    ui.label(tf("Version {}", &[&env!("CARGO_PKG_VERSION")]));
                     ui.add_space(6.0);
-                    ui.label("Screenshots, annotations and screen recordings.");
+                    ui.label(t("Screenshots, annotations and screen recordings."));
                 });
             });
         if !open {
@@ -955,7 +1057,27 @@ impl eframe::App for App {
             ctx.set_theme(self.settings.theme.preference());
             self.applied_theme = Some(self.settings.theme);
         }
+        i18n::set(self.settings.language);
         self.start_services(ctx);
+        // the menu-bar menu is native: rebuild it when the language changes
+        if self.tray.is_some() && self.tray_lang != Some(self.settings.language) {
+            self.tray = None;
+            self.tray_items.clear();
+            self.build_tray();
+        }
+        if self.tray.is_some() {
+            self.tray_lang = Some(self.settings.language);
+        }
+        // With the menu-bar icon running, closing the window only hides it.
+        if self.tray.is_some() && !self.quitting && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+            self.hidden = true;
+        }
+        // ⌘, opens Preferences, as in every Mac app
+        if self.screenshot.is_none() && ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Comma)) {
+            self.run(ctx, Command::Preferences);
+        }
         self.handle_messages(ctx);
 
         if let Some(v) = self.view.clone() {

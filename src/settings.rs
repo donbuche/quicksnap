@@ -62,11 +62,11 @@ impl AfterShot {
     ];
     pub fn label(self) -> String {
         match self {
-            AfterShot::OpenEditor => format!("Open {APP_NAME} editor"),
-            AfterShot::Save => "Save screenshot".into(),
-            AfterShot::Upload => "Upload screenshot".into(),
-            AfterShot::ExternalEditor => "Open external editor".into(),
-            AfterShot::Copy => "Copy image to clipboard".into(),
+            AfterShot::OpenEditor => crate::i18n::tf("Open {} editor", &[&APP_NAME]),
+            AfterShot::Save => crate::i18n::t("Save screenshot").into(),
+            AfterShot::Upload => crate::i18n::t("Upload screenshot").into(),
+            AfterShot::ExternalEditor => crate::i18n::t("Open external editor").into(),
+            AfterShot::Copy => crate::i18n::t("Copy image to clipboard").into(),
         }
     }
 }
@@ -119,6 +119,8 @@ pub struct Settings {
     pub show_tooltips_editor: bool,
     pub allow_default_browser: bool,
     pub theme: crate::theme::ThemeChoice,
+    /// Interface language (English unless the person picks another).
+    pub language: crate::i18n::Lang,
 
     // Hotkeys
     pub hotkeys: Vec<(Action, Option<Hotkey>)>,
@@ -173,6 +175,7 @@ impl Default for Settings {
             show_tooltips_editor: true,
             allow_default_browser: false,
             theme: crate::theme::ThemeChoice::System,
+            language: crate::i18n::Lang::En,
 
             hotkeys: crate::hotkeys::default_hotkeys(),
 

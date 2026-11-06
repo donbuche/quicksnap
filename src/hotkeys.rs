@@ -2,6 +2,7 @@
 //! default keys (⌥⌘ + digit, from the original's hotkey settings item) and
 //! registration with the system so they work while another app is in front.
 
+use crate::i18n::t;
 use global_hotkey::hotkey::{Code, HotKey, Modifiers};
 use global_hotkey::GlobalHotKeyManager;
 use serde::{Deserialize, Serialize};
@@ -47,20 +48,20 @@ impl Action {
 
     pub fn label(self) -> &'static str {
         match self {
-            Action::CaptureArea => "Capture area:",
-            Action::CaptureFrozenArea => "Capture frozen area:",
-            Action::CaptureAreaUpload => "Capture area & Upload:",
-            Action::CaptureFullscreen => "Capture fullscreen:",
-            Action::CaptureFullscreenDelayed => "Fullscreen after 10s:",
-            Action::OpenEditor => "Open Latest Image:",
-            Action::RecordVideo => "Record video:",
-            Action::CapturePreviousArea => "Capture previous area:",
-            Action::OpenFromClipboard => "Open from clipboard:",
-            Action::VideoRecordPause => "Record/Pause:",
-            Action::VideoStop => "Stop:",
-            Action::VideoArrow => "Arrow:",
-            Action::VideoRectangle => "Rectangle:",
-            Action::VideoFullscreen => "Fullscreen / Windowed mode:",
+            Action::CaptureArea => t("Capture area:"),
+            Action::CaptureFrozenArea => t("Capture frozen area:"),
+            Action::CaptureAreaUpload => t("Capture area & Upload:"),
+            Action::CaptureFullscreen => t("Capture fullscreen:"),
+            Action::CaptureFullscreenDelayed => t("Fullscreen after 10s:"),
+            Action::OpenEditor => t("Open Latest Image:"),
+            Action::RecordVideo => t("Record video:"),
+            Action::CapturePreviousArea => t("Capture previous area:"),
+            Action::OpenFromClipboard => t("Open from clipboard:"),
+            Action::VideoRecordPause => t("Record/Pause:"),
+            Action::VideoStop => t("Stop:"),
+            Action::VideoArrow => t("Arrow:"),
+            Action::VideoRectangle => t("Rectangle:"),
+            Action::VideoFullscreen => t("Fullscreen / Windowed mode:"),
         }
     }
 }

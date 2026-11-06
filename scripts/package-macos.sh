@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # Builds QuickSnap.app and QuickSnap.dmg into dist/.
-#   ./scripts/package-macos.sh
+#   ./scripts/package-macos.sh            # .app + .dmg
+#   ./scripts/package-macos.sh --no-dmg   # .app only (used by install-local.sh)
+# SIGN_IDENTITY=<name> signs with that certificate instead of ad-hoc ("-").
 set -euo pipefail
+
+MAKE_DMG=1
+[ "${1:-}" = "--no-dmg" ] && MAKE_DMG=0
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 APP_NAME="QuickSnap"
 BIN_NAME="quicksnap"
@@ -49,15 +55,23 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>CFBundleShortVersionString</key> <string>$VERSION</string>
   <key>LSMinimumSystemVersion</key>     <string>11.0</string>
   <key>NSHighResolutionCapable</key>    <true/>
+  <key>LSUIElement</key>                <true/>
   <key>LSApplicationCategoryType</key>  <string>public.app-category.productivity</string>
 </dict>
 </plist>
 EOF
 
-# Ad-hoc signature: free, no Apple account. Gives the bundle a stable identity
-# so the Screen Recording permission sticks to QuickSnap.
-echo "==> Ad-hoc signing"
-codesign --force --deep --sign - "$APP"
+# Ad-hoc by default: free, no Apple account. Note that an ad-hoc identity
+# changes with every build, so macOS may ask for Screen Recording again after
+# reinstalling; a fixed SIGN_IDENTITY avoids that.
+echo "==> Signing ($SIGN_IDENTITY)"
+codesign --force --deep --sign "$SIGN_IDENTITY" "$APP"
+
+if [ "$MAKE_DMG" = 0 ]; then
+  rm -rf "$(dirname "$ICONSET")"
+  echo "Done: $APP"
+  exit 0
+fi
 
 echo "==> Building $(basename "$DMG")"
 STAGE="$(mktemp -d)"

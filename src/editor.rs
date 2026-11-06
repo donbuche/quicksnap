@@ -15,8 +15,9 @@ use image::RgbaImage;
 use std::path::PathBuf;
 
 use crate::icons::{self, Icon};
+use crate::i18n::t;
 use crate::settings::{Settings, LINE_WIDTH_MAX, LINE_WIDTH_MIN};
-use crate::shapes::{self, AnnotFont, Kind, Prim, Shape, TextStyle, TEXT_SIZE_MAX, TEXT_SIZE_MIN};
+use crate::shapes::{self, AnnotFont, Handle, Kind, Prim, Shape, TextStyle, TEXT_SIZE_MAX, TEXT_SIZE_MIN};
 use crate::theme::{self, Backdrop, Pal};
 
 /// Palette from the original's tool-preferences panel, plus pure red which
@@ -24,11 +25,14 @@ use crate::theme::{self, Backdrop, Pal};
 pub const PALETTE: [u32; 10] =
     [0xff0000, 0xe504c3, 0xe50404, 0x53e504, 0x1f63be, 0xffea00, 0xff7200, 0x898989, 0x000000, 0xffffff];
 
-pub const BLUR_RADIUS: i32 = 8;
 /// Crop highlighter: black at 30 % outside the crop (0x100775c28, colour
 /// constant 0x100904c20 = 0, 0, 0, 0.3).
 pub const CROP_DIM_ALPHA: u8 = 77;
 pub const UNDO_LIMIT: usize = 40;
+/// Radius of a selection handle and how far from it a press still grabs it
+/// (screen points).
+const HANDLE_RADIUS: f32 = 4.5;
+const HANDLE_GRAB: f32 = 9.0;
 #[allow(dead_code)]
 pub const ACCENT: Color32 = Color32::from_rgb(0x00, 0x7a, 0xff);
 
@@ -73,31 +77,28 @@ impl Tool {
         }
     }
 
-    fn name(self) -> &'static str {
-        self.tip().0
-    }
 
     /// Title, shortcut and hint, from the original's tooltip and hotkey texts.
     fn tip(self) -> (&'static str, &'static str, &'static str) {
         match self {
             Tool::Select => (
-                "Select & move",
+                t("Select & move"),
                 "V",
-                "Click an item to select it, drag to move it\nDouble-click a text to edit it · Delete removes it",
+                t("Click an item to select it, drag to move it\nDouble-click a text to edit it · Delete removes it"),
             ),
-            Tool::Arrow => ("Arrow", "⌘1", "Hold ⇧ to draw at 45°\nHold ⌘ to draw from arrow’s head to tail"),
+            Tool::Arrow => (t("Arrow"), "⌘1", t("Hold ⇧ to draw at 45°\nHold ⌘ to draw from arrow’s head to tail")),
             Tool::Rect => (
-                "Rectangle",
+                t("Rectangle"),
                 "⌘2",
-                "Hold ⇧ to draw a square\nHold ⌥ to dark all except selected area\nHold ⌘ to draw filled rectangle",
+                t("Hold ⇧ to draw a square\nHold ⌥ to dark all except selected area\nHold ⌘ to draw filled rectangle"),
             ),
-            Tool::Line => ("Line", "⌘3", "Hold ⇧ to draw at 45°"),
-            Tool::Ellipse => ("Ellipse", "⌘4", "Hold ⇧ to draw a circle\nHold ⌘ to draw filled ellipse"),
-            Tool::Pen => ("Pen", "⌘5", "Hold ⌘ to convert into highlighter"),
-            Tool::Text => ("Text", "⌘6", "Click to type · click an existing text to edit it"),
-            Tool::Bubble => ("Text with arrow", "⌘7", "Drag from the point to where the note goes, then type"),
-            Tool::Blur => ("Blur", "⌘8", "Hold ⇧ to blur a square area"),
-            Tool::Crop => ("Crop", "", "Hold ⇧ for a square\nEnter to apply, Esc to cancel"),
+            Tool::Line => (t("Line"), "⌘3", t("Hold ⇧ to draw at 45°")),
+            Tool::Ellipse => (t("Ellipse"), "⌘4", t("Hold ⇧ to draw a circle\nHold ⌘ to draw filled ellipse")),
+            Tool::Pen => (t("Pen"), "⌘5", t("Hold ⌘ to convert into highlighter")),
+            Tool::Text => (t("Text"), "⌘6", t("Click to type · click an existing text to edit it")),
+            Tool::Bubble => (t("Text with arrow"), "⌘7", t("Drag from the point to where the note goes, then type")),
+            Tool::Blur => (t("Blur"), "⌘8", t("Drag over what you want to hide\nHold ⇧ for a square")),
+            Tool::Crop => (t("Crop"), "", t("Hold ⇧ for a square\nEnter to apply, Esc to cancel")),
         }
     }
 }
@@ -124,14 +125,18 @@ pub struct Editor {
     redo: Vec<Doc>,
     texture: Option<TextureHandle>,
     backdrop_tex: Option<TextureHandle>,
+    /// The picture strongly blurred, sampled by Blur items.
+    blur_tex: Option<TextureHandle>,
     backdrop: Option<Backdrop>,
     tex_dirty: bool,
     pub tool: Tool,
     drag_start: Option<Pos2>,
     pending: Option<Shape>,
-    pending_blur: Option<Rect>,
     selected: Option<usize>,
     moving: bool,
+    /// A handle of the selected item being dragged: which one, the item as
+    /// it was when the drag began, its selection frame then, and where it began.
+    reshaping: Option<(Handle, Shape, Rect, Pos2)>,
     editing: Option<usize>,
     focus_text: bool,
     style_undo_armed: bool,
@@ -153,14 +158,15 @@ impl Editor {
             redo: Vec::new(),
             texture: None,
             backdrop_tex: None,
+            blur_tex: None,
             backdrop: None,
             tex_dirty: true,
             tool: Tool::Arrow,
             drag_start: None,
             pending: None,
-            pending_blur: None,
             selected: None,
             moving: false,
+            reshaping: None,
             editing: None,
             focus_text: false,
             style_undo_armed: true,
@@ -303,6 +309,12 @@ impl Editor {
                 Some(t) => t.set(bd, TextureOptions::LINEAR),
                 None => self.backdrop_tex = Some(ctx.load_texture("editor-backdrop", bd, TextureOptions::LINEAR)),
             }
+            let small = shapes::redact_small(&self.doc.image);
+            let bi = egui::ColorImage::from_rgba_unmultiplied([small.width() as usize, small.height() as usize], small.as_raw());
+            match &mut self.blur_tex {
+                Some(t) => t.set(bi, TextureOptions::LINEAR),
+                None => self.blur_tex = Some(ctx.load_texture("editor-blur", bi, TextureOptions::LINEAR)),
+            }
             self.tex_dirty = false;
         }
         self.texture.clone().unwrap()
@@ -434,7 +446,6 @@ impl Editor {
         if esc {
             self.crop = None;
             self.pending = None;
-            self.pending_blur = None;
             self.selected = None;
         }
         if enter {
@@ -475,7 +486,7 @@ impl Editor {
 
     fn tools_panel(&mut self, ctx: &Context, s: &mut Settings, font: &AnnotFont, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) {
         theme::floating(ctx, "tools_panel", Align2::LEFT_TOP, avail.left_top() + vec2(12.0, 12.0), pal, self.backdrop, |ui| {
-            if Self::tool_button(ui, pal, s, Icon::Back, false, ("Home", "", "Back to the capture screen")).clicked() {
+            if Self::tool_button(ui, pal, s, Icon::Back, false, (t("Home"), "", t("Back to the capture screen"))).clicked() {
                 cmds.push(Cmd::Home);
             }
             theme::divider(ui, pal);
@@ -497,21 +508,21 @@ impl Editor {
                 self.tool = Tool::Crop;
                 self.selected = None;
             }
-            if Self::tool_button(ui, pal, s, Icon::Rotate, false, ("Rotate clockwise", "⌘→", "Hold ⌘ to rotate counterclockwise"))
+            if Self::tool_button(ui, pal, s, Icon::Rotate, false, (t("Rotate clockwise"), "⌘→", t("Hold ⌘ to rotate counterclockwise")))
                 .clicked()
             {
                 let ccw = ui.input(|i| i.modifiers.command);
                 self.rotate(!ccw, font);
             }
-            if Self::tool_button(ui, pal, s, Icon::Resize, false, ("Resize", "", "")).clicked() {
+            if Self::tool_button(ui, pal, s, Icon::Resize, false, (t("Resize"), "", "")).clicked() {
                 let (w, h) = self.size();
                 self.resize = Some((w, h, true));
             }
             theme::divider(ui, pal);
-            if Self::tool_button(ui, pal, s, Icon::Undo, false, ("Undo", "⌘Z", "")).clicked() {
+            if Self::tool_button(ui, pal, s, Icon::Undo, false, (t("Undo"), "⌘Z", "")).clicked() {
                 self.undo();
             }
-            if Self::tool_button(ui, pal, s, Icon::Redo, false, ("Redo", "⇧⌘Z", "")).clicked() {
+            if Self::tool_button(ui, pal, s, Icon::Redo, false, (t("Redo"), "⇧⌘Z", "")).clicked() {
                 self.redo();
             }
         });
@@ -520,23 +531,23 @@ impl Editor {
     fn actions_panel(&mut self, ctx: &Context, s: &Settings, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) -> Rect {
         theme::floating(ctx, "actions_panel", Align2::RIGHT_TOP, avail.right_top() + vec2(-12.0, 12.0), pal, self.backdrop, |ui| {
             let b = |t: &str| egui::Button::new(t).min_size(vec2(0.0, 32.0)).corner_radius(9.0);
-            let c = ui.add(b("Copy"));
+            let c = ui.add(b(t("Copy")));
             if c.clicked() {
                 cmds.push(Cmd::Copy);
             }
             if s.show_tooltips_editor {
-                c.on_hover_text("Copy image  ⌘C");
+                c.on_hover_text(t("Copy image  ⌘C"));
             }
-            let e = ui.add(b("Open in…"));
+            let e = ui.add(b(t("Open in…")));
             if e.clicked() {
                 cmds.push(Cmd::External);
             }
             if s.show_tooltips_editor {
-                e.on_hover_text("External editor  ⌘E");
+                e.on_hover_text(t("External editor  ⌘E"));
             }
-            ui.add_enabled(false, b("Upload"))
-                .on_disabled_hover_text("Uploading needs a connected account, which this version doesn't include");
-            let save = egui::Button::new(RichText::new("Save").color(Color32::WHITE).strong())
+            ui.add_enabled(false, b(t("Upload")))
+                .on_disabled_hover_text(t("Uploading needs a connected account, which this version doesn't include"));
+            let save = egui::Button::new(RichText::new(t("Save")).color(Color32::WHITE).strong())
                 .fill(pal.accent)
                 .min_size(vec2(64.0, 32.0))
                 .corner_radius(9.0);
@@ -545,7 +556,7 @@ impl Editor {
                 cmds.push(Cmd::Save);
             }
             if s.show_tooltips_editor {
-                r.on_hover_text("Save  ⌘S");
+                r.on_hover_text(t("Save  ⌘S"));
             }
         })
         .response
@@ -565,23 +576,31 @@ impl Editor {
                     _ => (s.editor_text_size, None),
                 };
                 let what = match &sh.kind {
-                    Kind::Arrow { .. } => "arrow",
-                    Kind::Line { .. } => "line",
-                    Kind::Rect { .. } => "rectangle",
-                    Kind::Ellipse { .. } => "ellipse",
-                    Kind::Pen { .. } => "drawing",
-                    Kind::Text { .. } => "text",
-                    Kind::Bubble { .. } => "note",
+                    Kind::Arrow { .. } => t("Selected arrow"),
+                    Kind::Line { .. } => t("Selected line"),
+                    Kind::Rect { .. } => t("Selected rectangle"),
+                    Kind::Ellipse { .. } => t("Selected ellipse"),
+                    Kind::Pen { .. } => t("Selected drawing"),
+                    Kind::Text { .. } => t("Selected text"),
+                    Kind::Bubble { .. } => t("Selected note"),
+                    Kind::Blur { .. } => t("Selected blur area"),
                 };
-                let label = if self.editing.is_some() { "Typing — Esc to finish".to_string() } else { format!("Selected {what}") };
+                let label = if self.editing.is_some() { t("Typing — Esc to finish").to_string() } else { what.to_string() };
                 (sh.color, sh.width, sh.shadow, ts, st, sh.is_text(), matches!(sh.kind, Kind::Bubble { .. }), label)
             }
             None => {
                 let text_tool = matches!(self.tool, Tool::Text | Tool::Bubble);
                 let label = match self.tool {
-                    Tool::Text => "Click on the picture to type".to_string(),
-                    Tool::Select => "Click an item to change it".to_string(),
-                    t => format!("New {}", t.name().to_lowercase()),
+                    Tool::Text => t("Click on the picture to type").to_string(),
+                    Tool::Select => t("Click an item to change it").to_string(),
+                    Tool::Arrow => t("New arrow").to_string(),
+                    Tool::Rect => t("New rectangle").to_string(),
+                    Tool::Line => t("New line").to_string(),
+                    Tool::Ellipse => t("New ellipse").to_string(),
+                    Tool::Pen => t("New drawing").to_string(),
+                    Tool::Bubble => t("New text with arrow").to_string(),
+                    Tool::Blur => t("New blur area").to_string(),
+                    Tool::Crop => t("Crop area").to_string(),
                 };
                 (
                     color_of(s.editor_color),
@@ -596,6 +615,19 @@ impl Editor {
             }
         };
         let _ = is_bubble;
+        // blur areas have no colour or size: the bar just explains them
+        let is_blur = match target {
+            Some(i) => matches!(self.doc.shapes[i].kind, Kind::Blur { .. }),
+            None => self.tool == Tool::Blur,
+        };
+        if is_blur {
+            theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, self.backdrop, |ui| {
+                ui.add_sized(vec2(118.0, 32.0), egui::Label::new(RichText::new(label).size(12.0).color(pal.hint)).truncate());
+                theme::divider(ui, pal);
+                ui.label(RichText::new(t("Drag over anything you want to hide · ⇧ for a square")).size(12.0).color(pal.text));
+            });
+            return;
+        }
         let mut new_color = color;
         let mut new_width = width;
         let mut new_shadow = shadow;
@@ -626,7 +658,7 @@ impl Editor {
             }
             let mut rgb = [new_color.r(), new_color.g(), new_color.b()];
             ui.spacing_mut().interact_size = vec2(20.0, 20.0);
-            if egui::color_picker::color_edit_button_srgb(ui, &mut rgb).on_hover_text("Any colour").changed() {
+            if egui::color_picker::color_edit_button_srgb(ui, &mut rgb).on_hover_text(t("Any colour")).changed() {
                 new_color = Color32::from_rgb(rgb[0], rgb[1], rgb[2]);
             }
             ui.spacing_mut().item_spacing.x = 4.0;
@@ -637,7 +669,7 @@ impl Editor {
             ui.spacing_mut().slider_width = 80.0;
             let sr = ui
                 .add(egui::Slider::new(&mut new_width, LINE_WIDTH_MIN..=LINE_WIDTH_MAX).step_by(1.0).show_value(false))
-                .on_hover_text("Size of lines, arrows and shapes  ⌘[ ⌘]");
+                .on_hover_text(t("Size of lines, arrows and shapes  ⌘[ ⌘]"));
             slider_active |= sr.dragged() || sr.changed();
             slider_started |= sr.drag_started();
             if is_text {
@@ -647,14 +679,14 @@ impl Editor {
                 ui.spacing_mut().interact_size = vec2(34.0, 22.0);
                 let tr = ui
                     .add(egui::Slider::new(&mut new_tsize, TEXT_SIZE_MIN..=TEXT_SIZE_MAX).step_by(1.0).suffix("").logarithmic(true))
-                    .on_hover_text("Text size");
+                    .on_hover_text(t("Text size"));
                 slider_active |= tr.dragged() || tr.changed();
                 slider_started |= tr.drag_started();
                 if let Some(st) = new_style.as_mut() {
                     for (variant, tip) in [
-                        (TextStyle::Plain, "Plain text"),
-                        (TextStyle::Outline, "Text with an outline"),
-                        (TextStyle::Box, "Text on a coloured box"),
+                        (TextStyle::Plain, t("Plain text")),
+                        (TextStyle::Outline, t("Text with an outline")),
+                        (TextStyle::Box, t("Text on a coloured box")),
                     ] {
                         let (r, resp) = ui.allocate_exact_size(vec2(30.0, 30.0), Sense::click());
                         let on = *st == variant;
@@ -691,7 +723,7 @@ impl Editor {
                 }
             }
             theme::divider(ui, pal);
-            ui.toggle_value(&mut new_shadow, "Shadow").on_hover_text("Shadow & outline under new items");
+            ui.toggle_value(&mut new_shadow, t("Shadow")).on_hover_text(t("Shadow & outline under new items"));
         });
 
         let changed = new_color != color
@@ -749,18 +781,18 @@ impl Editor {
             let (w, h) = self.size();
             ui.label(RichText::new(format!("{w} × {h}")).size(12.0).color(pal.hint));
             theme::divider(ui, pal);
-            if ui.small_button("−").on_hover_text("Zoom out  ⌘−").clicked() {
+            if ui.small_button("−").on_hover_text(t("Zoom out  ⌘−")).clicked() {
                 self.zoom = Some((self.last_scale / 1.25).max(0.05));
             }
             let pct = (self.last_scale * ppp * 100.0).round();
             ui.label(RichText::new(format!("{pct}%")).size(12.0));
-            if ui.small_button("+").on_hover_text("Zoom in  ⌘+").clicked() {
+            if ui.small_button("+").on_hover_text(t("Zoom in  ⌘+")).clicked() {
                 self.zoom = Some(self.last_scale * 1.25);
             }
-            if ui.small_button("Fit").on_hover_text("Fit to window  ⌘0").clicked() {
+            if ui.small_button(t("Fit")).on_hover_text(t("Fit to window  ⌘0")).clicked() {
                 self.zoom = None;
             }
-            if ui.small_button("1:1").on_hover_text("Original size").clicked() {
+            if ui.small_button("1:1").on_hover_text(t("Original size")).clicked() {
                 self.zoom = Some(1.0 / ppp);
             }
         });
@@ -783,7 +815,7 @@ impl Editor {
         let screen = img_rect.min + origin.to_vec2() * scale;
         let fid = FontId::new(size * scale / font.em_ratio(), FontFamily::Name("annot".into()));
         let text_now = sh.text_mut().cloned().unwrap_or_default();
-        let width = (font.measure(if text_now.is_empty() { "Type text…" } else { &text_now }, size).x * scale + size * scale * 2.0).max(60.0);
+        let width = (font.measure(if text_now.is_empty() { t("Type text…") } else { &text_now }, size).x * scale + size * scale * 2.0).max(60.0);
         let id = Id::new("annotation_text_edit");
         let mut lost = false;
         let mut focus = self.focus_text;
@@ -797,7 +829,7 @@ impl Editor {
                 .text_color(color)
                 .desired_width(width)
                 .desired_rows(1)
-                .hint_text(RichText::new("Type text…").font(fid).color(pal.hint));
+                .hint_text(RichText::new(t("Type text…")).font(fid).color(pal.hint));
             let r = ui.add(te);
             if focus {
                 r.request_focus();
@@ -858,6 +890,7 @@ impl Editor {
                 let clip = ui.painter_at(img_rect);
                 let full = Rect::from_min_size(Pos2::ZERO, vec2(iw, ih));
 
+                let blur_tex = self.blur_tex.as_ref().map(|t| t.id());
                 for (i, sh) in self.doc.shapes.iter().enumerate() {
                     let mut prims = sh.prims(font);
                     if self.editing == Some(i) {
@@ -867,25 +900,26 @@ impl Editor {
                             prims.retain(|p| !matches!(p, Prim::Text { .. }));
                         }
                     }
-                    paint_prims(&clip, &prims, &to_screen, scale, full, font.em_ratio());
+                    paint_prims(&clip, &prims, &to_screen, scale, full, font.em_ratio(), blur_tex);
                 }
                 if let Some(p) = &self.pending {
-                    paint_prims(&clip, &p.prims(font), &to_screen, scale, full, font.em_ratio());
-                }
-                if let Some(b) = self.pending_blur {
-                    let r = Rect::from_min_max(to_screen(b.min), to_screen(b.max));
-                    clip.rect_filled(r, 4.0, Color32::from_white_alpha(50));
-                    dashed_rect(&clip, r, Color32::WHITE);
+                    paint_prims(&clip, &p.prims(font), &to_screen, scale, full, font.em_ratio(), blur_tex);
+                    if let Kind::Blur { r } = p.kind {
+                        dashed_rect(&clip, Rect::from_min_max(to_screen(r.min), to_screen(r.max)), Color32::WHITE);
+                    }
                 }
                 // selection frame
                 if let Some(i) = self.selected {
                     if let Some(sh) = self.doc.shapes.get(i) {
-                        let b = sh.bounds(font);
-                        let r = Rect::from_min_max(to_screen(b.min), to_screen(b.max)).expand(4.0);
-                        painter.rect_stroke(r, 6.0, Stroke::new(1.5_f32, pal.accent), egui::StrokeKind::Middle);
-                        for c in [r.left_top(), r.right_top(), r.left_bottom(), r.right_bottom()] {
-                            painter.circle_filled(c, 4.5, Color32::WHITE);
-                            painter.circle_stroke(c, 4.5, Stroke::new(1.5_f32, pal.accent));
+                        let frame = Self::sel_frame(sh, font, scale);
+                        if sh.shows_frame() {
+                            let r = Rect::from_min_max(to_screen(frame.min), to_screen(frame.max));
+                            painter.rect_stroke(r, 6.0, Stroke::new(1.5_f32, pal.accent), egui::StrokeKind::Middle);
+                        }
+                        for (_, c) in sh.handles(frame) {
+                            let c = to_screen(c);
+                            painter.circle_filled(c, HANDLE_RADIUS, Color32::WHITE);
+                            painter.circle_stroke(c, HANDLE_RADIUS, Stroke::new(1.5_f32, pal.accent));
                         }
                     }
                 }
@@ -909,10 +943,10 @@ impl Editor {
                             .show(&ctx, |ui| {
                                 Frame::popup(ui.style()).corner_radius(10.0).show(ui, |ui| {
                                     ui.horizontal(|ui| {
-                                        if ui.button("Cancel").clicked() {
+                                        if ui.button(t("Cancel")).clicked() {
                                             cancel = true;
                                         }
-                                        if ui.add(egui::Button::new(RichText::new("Crop").color(Color32::WHITE)).fill(pal.accent)).clicked() {
+                                        if ui.add(egui::Button::new(RichText::new(t("Crop")).color(Color32::WHITE)).fill(pal.accent)).clicked() {
                                             apply = true;
                                         }
                                     });
@@ -929,6 +963,25 @@ impl Editor {
 
                 self.handle_pointer(&ctx, &resp, s, font, &to_img, full, scale);
             });
+    }
+
+    /// The selection frame around an item, in picture pixels (4 screen
+    /// points outside its bounds).
+    fn sel_frame(sh: &Shape, font: &AnnotFont, scale: f32) -> Rect {
+        sh.bounds(font).expand(4.0 / scale.max(0.01))
+    }
+
+    /// The handle of the selected item under `p` (picture pixels), if any,
+    /// with the item's selection frame.
+    fn handle_at(&self, p: Pos2, scale: f32, font: &AnnotFont) -> Option<(Handle, Rect)> {
+        let sh = self.doc.shapes.get(self.selected?)?;
+        let frame = Self::sel_frame(sh, font, scale);
+        let grab = HANDLE_GRAB / scale.max(0.01);
+        sh.handles(frame)
+            .into_iter()
+            .filter(|(_, c)| c.distance(p) <= grab)
+            .min_by(|x, y| x.1.distance(p).total_cmp(&y.1.distance(p)))
+            .map(|(h, _)| (h, frame))
     }
 
     fn hit_test(&self, p: Pos2, scale: f32, font: &AnnotFont) -> Option<usize> {
@@ -956,11 +1009,23 @@ impl Editor {
 
         if let Some(hp) = resp.hover_pos() {
             let over = self.hit_test(to_img(hp), scale, font);
+            let handle = match &self.reshaping {
+                Some(r) => Some(r.0),
+                None if self.moving || self.tool == Tool::Crop => None,
+                None => self.handle_at(to_img(hp), scale, font).map(|h| h.0),
+            };
             let icon = match self.tool {
+                _ if handle.is_some() => match handle {
+                    Some(Handle::Corner(0 | 3)) => egui::CursorIcon::ResizeNwSe,
+                    Some(Handle::Corner(_)) => egui::CursorIcon::ResizeNeSw,
+                    _ => egui::CursorIcon::Crosshair,
+                },
                 Tool::Select if over.is_some() => egui::CursorIcon::Grab,
                 Tool::Select => egui::CursorIcon::Default,
                 Tool::Text if over.map(|i| self.doc.shapes[i].is_text()).unwrap_or(false) => egui::CursorIcon::Text,
                 Tool::Text => egui::CursorIcon::Text,
+                Tool::Crop => egui::CursorIcon::Crosshair,
+                _ if over.is_some() && over == self.selected => egui::CursorIcon::Grab,
                 _ => egui::CursorIcon::Crosshair,
             };
             ctx.set_cursor_icon(if self.moving { egui::CursorIcon::Grabbing } else { icon });
@@ -985,31 +1050,45 @@ impl Editor {
                 let p = to_img(o);
                 self.drag_start = Some(p);
                 let mk = |kind| Shape { kind, color, width, shadow };
-                match self.tool {
-                    Tool::Select => {
-                        self.selected = self.hit_test(p, scale, font);
-                        if self.selected.is_some() {
-                            self.push_undo();
-                            self.moving = true;
+                let free_tool = self.tool != Tool::Crop;
+                let handle = if free_tool { self.handle_at(p, scale, font) } else { None };
+                let on_selected = self.selected.is_some() && self.hit_test(p, scale, font) == self.selected;
+                if let (Some((h, frame)), Some(i)) = (handle, self.selected) {
+                    // a handle of the selected item reshapes it, whatever the tool
+                    let orig = self.doc.shapes[i].clone();
+                    self.push_undo();
+                    self.reshaping = Some((h, orig, frame, p));
+                } else if on_selected && free_tool && self.tool != Tool::Select {
+                    // dragging the selected item itself moves it, whatever the tool
+                    self.push_undo();
+                    self.moving = true;
+                } else {
+                    match self.tool {
+                        Tool::Select => {
+                            self.selected = self.hit_test(p, scale, font);
+                            if self.selected.is_some() {
+                                self.push_undo();
+                                self.moving = true;
+                            }
                         }
-                    }
-                    Tool::Arrow => self.pending = Some(mk(Kind::Arrow { a: p, b: p })),
-                    Tool::Line => self.pending = Some(mk(Kind::Line { a: p, b: p })),
-                    Tool::Rect => self.pending = Some(mk(Kind::Rect { r: Rect::from_two_pos(p, p), filled: false, darken: false })),
-                    Tool::Ellipse => self.pending = Some(mk(Kind::Ellipse { r: Rect::from_two_pos(p, p), filled: false })),
-                    Tool::Pen => self.pending = Some(mk(Kind::Pen { pts: vec![p], highlighter: mods.command })),
-                    Tool::Bubble => self.pending = Some(mk(Kind::Bubble { tail: p, pos: p, text: String::new(), size: tsize })),
-                    Tool::Blur => self.pending_blur = Some(Rect::from_two_pos(p, p)),
-                    Tool::Crop => {
-                        self.crop = Some(Rect::from_two_pos(p, p));
-                        self.crop_dragging = true;
-                    }
-                    Tool::Text => {
-                        // dragging a text with the Text tool moves it
-                        if let Some(i) = self.hit_test(p, scale, font).filter(|i| self.doc.shapes[*i].is_text()) {
-                            self.selected = Some(i);
-                            self.push_undo();
-                            self.moving = true;
+                        Tool::Arrow => self.pending = Some(mk(Kind::Arrow { a: p, b: p })),
+                        Tool::Line => self.pending = Some(mk(Kind::Line { a: p, b: p })),
+                        Tool::Rect => self.pending = Some(mk(Kind::Rect { r: Rect::from_two_pos(p, p), filled: false, darken: false })),
+                        Tool::Ellipse => self.pending = Some(mk(Kind::Ellipse { r: Rect::from_two_pos(p, p), filled: false })),
+                        Tool::Pen => self.pending = Some(mk(Kind::Pen { pts: vec![p], highlighter: mods.command })),
+                        Tool::Bubble => self.pending = Some(mk(Kind::Bubble { tail: p, pos: p, text: String::new(), size: tsize })),
+                        Tool::Blur => self.pending = Some(mk(Kind::Blur { r: Rect::from_two_pos(p, p) })),
+                        Tool::Crop => {
+                            self.crop = Some(Rect::from_two_pos(p, p));
+                            self.crop_dragging = true;
+                        }
+                        Tool::Text => {
+                            // dragging a text with the Text tool moves it
+                            if let Some(i) = self.hit_test(p, scale, font).filter(|i| self.doc.shapes[*i].is_text()) {
+                                self.selected = Some(i);
+                                self.push_undo();
+                                self.moving = true;
+                            }
                         }
                     }
                 }
@@ -1017,7 +1096,14 @@ impl Editor {
         }
 
         if resp.dragged() {
-            if self.moving {
+            if let Some((h, orig, frame, start)) = &self.reshaping {
+                if let (Some(i), Some(cur)) = (self.selected, resp.interact_pointer_pos()) {
+                    let delta = to_img(cur) - *start;
+                    if let Some(sh) = self.doc.shapes.get_mut(i) {
+                        sh.drag_handle(orig, *h, *frame, delta, mods.shift);
+                    }
+                }
+            } else if self.moving {
                 if let Some(i) = self.selected {
                     let d = resp.drag_delta() / scale;
                     if let Some(sh) = self.doc.shapes.get_mut(i) {
@@ -1027,10 +1113,6 @@ impl Editor {
             } else if let (Some(a), Some(cur)) = (self.drag_start, resp.interact_pointer_pos()) {
                 let b = to_img(cur);
                 match self.tool {
-                    Tool::Blur => {
-                        let b2 = if mods.shift { shapes::square(a, b) } else { b };
-                        self.pending_blur = Some(Rect::from_two_pos(a, b2).intersect(full));
-                    }
                     Tool::Crop => {
                         let b2 = if mods.shift { shapes::square(a, b) } else { b };
                         self.crop = Some(Rect::from_two_pos(a, b2).intersect(full));
@@ -1067,6 +1149,10 @@ impl Editor {
                             }
                         }
                         Kind::Bubble { pos, .. } => *pos = if mods.shift { shapes::snap45(a, b) } else { b },
+                        Kind::Blur { r } => {
+                            let b2 = if mods.shift { shapes::square(a, b) } else { b };
+                            *r = Rect::from_two_pos(a, b2).intersect(full);
+                        }
                         Kind::Text { .. } => {}
                     }
                 }
@@ -1075,15 +1161,9 @@ impl Editor {
 
         if resp.drag_stopped() {
             self.drag_start = None;
+            self.reshaping = None;
             if self.moving {
                 self.moving = false;
-            }
-            if let Some(b) = self.pending_blur.take() {
-                if b.width() >= 2.0 && b.height() >= 2.0 {
-                    self.push_undo();
-                    shapes::blur_region(&mut self.doc.image, b, BLUR_RADIUS);
-                    self.tex_dirty = true;
-                }
             }
             if self.tool == Tool::Crop {
                 self.crop_dragging = false;
@@ -1094,7 +1174,7 @@ impl Editor {
             if let Some(p) = self.pending.take() {
                 let keep = match &p.kind {
                     Kind::Arrow { a, b } | Kind::Line { a, b } => a.distance(*b) > 3.0,
-                    Kind::Rect { r, .. } | Kind::Ellipse { r, .. } => r.width() > 2.0 && r.height() > 2.0,
+                    Kind::Rect { r, .. } | Kind::Ellipse { r, .. } | Kind::Blur { r } => r.width() > 2.0 && r.height() > 2.0,
                     Kind::Pen { .. } | Kind::Bubble { .. } => true,
                     Kind::Text { .. } => false,
                 };
@@ -1117,6 +1197,10 @@ impl Editor {
             self.finish_text();
             if let Some(pp) = resp.interact_pointer_pos() {
                 let p = to_img(pp);
+                if self.tool != Tool::Crop && self.handle_at(p, scale, font).is_some() {
+                    // a click on a handle keeps the item selected
+                    return;
+                }
                 let hit = self.hit_test(p, scale, font);
                 let mk = |kind| Shape { kind, color, width, shadow };
                 match self.tool {
@@ -1138,7 +1222,7 @@ impl Editor {
                         self.doc.shapes.push(mk(Kind::Bubble { tail: p, pos: p + off, text: String::new(), size: tsize }));
                         self.start_editing(self.doc.shapes.len() - 1);
                     }
-                    Tool::Crop | Tool::Blur => {}
+                    Tool::Crop => {}
                     _ => {
                         // a click (no drag) picks an existing item with any tool
                         self.selected = hit;
@@ -1154,30 +1238,30 @@ impl Editor {
         let mut open = true;
         let mut apply = false;
         let mut close = false;
-        egui::Window::new("Resize")
+        egui::Window::new(t("Resize"))
             .collapsible(false)
             .resizable(false)
             .open(&mut open)
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .show(ctx, |ui| {
                 egui::Grid::new("resize_grid").num_columns(2).show(ui, |ui| {
-                    ui.label("Width:");
+                    ui.label(t("Width:"));
                     if ui.add(egui::DragValue::new(&mut w).range(1..=20000).suffix(" px")).changed() && keep {
                         h = ((w as f32) * oh as f32 / ow as f32).round().max(1.0) as u32;
                     }
                     ui.end_row();
-                    ui.label("Height:");
+                    ui.label(t("Height:"));
                     if ui.add(egui::DragValue::new(&mut h).range(1..=20000).suffix(" px")).changed() && keep {
                         w = ((h as f32) * ow as f32 / oh as f32).round().max(1.0) as u32;
                     }
                     ui.end_row();
                 });
-                ui.checkbox(&mut keep, "Save proportions");
+                ui.checkbox(&mut keep, t("Save proportions"));
                 ui.horizontal(|ui| {
-                    if ui.button("Cancel").clicked() {
+                    if ui.button(t("Cancel")).clicked() {
                         close = true;
                     }
-                    if ui.button("OK").clicked() {
+                    if ui.button(t("OK")).clicked() {
                         apply = true;
                     }
                 });
@@ -1209,7 +1293,15 @@ fn dashed_rect(p: &Painter, r: Rect, c: Color32) {
     p.add(EShape::dashed_line(&pts, Stroke::new(1.0_f32, c), 5.0, 5.0));
 }
 
-fn paint_prims(p: &Painter, prims: &[Prim], to_screen: &dyn Fn(Pos2) -> Pos2, scale: f32, full: Rect, em_ratio: f32) {
+fn paint_prims(
+    p: &Painter,
+    prims: &[Prim],
+    to_screen: &dyn Fn(Pos2) -> Pos2,
+    scale: f32,
+    full: Rect,
+    em_ratio: f32,
+    blur_tex: Option<egui::TextureId>,
+) {
     for prim in prims {
         match prim {
             Prim::Stroke { pts, width, color, closed } => {
@@ -1251,6 +1343,16 @@ fn paint_prims(p: &Painter, prims: &[Prim], to_screen: &dyn Fn(Pos2) -> Pos2, sc
                     FontId::new(size * scale / em_ratio, FontFamily::Name("annot".into())),
                     *color,
                 );
+            }
+            Prim::Blur { r } => {
+                let r = r.intersect(full);
+                if let Some(t) = blur_tex {
+                    let uv = Rect::from_min_max(
+                        pos2(r.min.x / full.width(), r.min.y / full.height()),
+                        pos2(r.max.x / full.width(), r.max.y / full.height()),
+                    );
+                    p.image(t, Rect::from_min_max(to_screen(r.min), to_screen(r.max)), uv, Color32::WHITE);
+                }
             }
             Prim::DarkenOutside { r } => {
                 for part in shapes::outside_parts(full, *r) {

@@ -20,6 +20,10 @@ global-hotkey = "0.7"
 tray-icon = "0.21"
 libc = "0.2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# Same winit eframe uses; needed to run as a menu-bar-only app (no Dock icon).
+winit = "0.30"
+
 [profile.dev]
 opt-level = 1
 
