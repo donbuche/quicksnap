@@ -6,7 +6,7 @@
 
 **A lightweight screenshot and annotation tool for macOS, written in Rust.**
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success?logo=apple)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
@@ -31,6 +31,7 @@ then save or copy it, with no accounts, no uploads and no telemetry.
 - [Usage](#usage)
 - [Build from source](#build-from-source)
 - [Project layout](#project-layout)
+- [Workflow and versions](#workflow-and-versions)
 - [Roadmap](#roadmap)
 - [Credits](#credits)
 - [License](#license)
@@ -41,8 +42,9 @@ then save or copy it, with no accounts, no uploads and no telemetry.
   screen, and full screen after a 10-second delay
 - **Record video:** full-screen recording to `.mov`, with cursor and clicks shown
 - **Annotate:** arrows, rectangles, ellipses, lines, freehand pen, text and text callouts,
-  with a colour palette (or any custom colour) and line width; every item can be moved
-  and resized afterwards
+  with a colour palette (or any custom colour, also by hex code) and line width; every
+  item can be moved and resized afterwards
+- **Zoom:** pinch on the trackpad or ⌘ + scroll around the pointer, or the zoom menu
 - **Drop shadow:** optional soft shadow around the exported picture (transparent PNG),
   like macOS window screenshots
 - **Redact and trim:** blur sensitive areas (movable, resizable), crop, rotate and resize
@@ -55,6 +57,8 @@ then save or copy it, with no accounts, no uploads and no telemetry.
   running, and every command is also in the menu-bar icon's menu
 - **Languages:** English, Spanish and Catalan, picked from the home screen or Preferences
 - **Launch at login:** optional, from Preferences → General
+- **Glass look:** see-through window with the desktop blurred behind it, colour-gradient
+  backdrop and no title bar (only the window buttons)
 - **Small and native:** a single Rust binary, ~5 MB DMG
 
 ## Screenshots
@@ -159,7 +163,8 @@ src/
 ├── i18n.rs          interface languages (EN/ES/CA) and flags
 ├── settings.rs      settings model and persistence
 ├── settings_ui.rs   Preferences window (General, Advanced, Appearance, Hotkeys, Fonts)
-├── theme.rs         light/dark palettes and styling
+├── theme.rs         light/dark palettes, glass panels, gradients, vibrancy
+├── colour_picker.rs custom-colour popup (hex code, colour map, hue bar)
 ├── icons.rs         vector toolbar icons
 └── appicon.rs       app icon, drawn in code
 scripts/
@@ -167,6 +172,32 @@ scripts/
 ├── install-local.sh build, install into /Applications and relaunch
 └── setup-signing.sh one-time local signing certificate (keeps permissions across rebuilds)
 docs/                README images
+```
+
+## Workflow and versions
+
+The repository follows [git-flow](https://nvie.com/posts/a-successful-git-branching-model/)
+(the `git flow` command is configured for it):
+
+| Branch | Purpose |
+|---|---|
+| `main` | Released versions only; every commit on it is a release, tagged `vX.Y.Z` |
+| `develop` | Integration branch; finished features are merged here |
+| `feature/<name>` | New work, branched from `develop` and merged back into it |
+| `release/X.Y.Z` | Version bump and last fixes, from `develop`; merged into `main` (tagged) and back into `develop` |
+| `hotfix/X.Y.Z` | Urgent fix of a release, from `main`; merged into `main` (tagged) and `develop` |
+
+Versions follow [Semantic Versioning](https://semver.org): `X` for incompatible changes,
+`Y` for new features, `Z` for fixes. The version lives in `Cargo.toml` (the packaging
+script reads it from there) and in the badge at the top of this file; changes are listed
+in [CHANGELOG.md](CHANGELOG.md).
+
+```sh
+git flow feature start <name>       # … work, commit …
+git flow feature finish <name>      # merge into develop
+git flow release start X.Y.Z        # bump Cargo.toml, README badge, CHANGELOG.md
+git flow release finish X.Y.Z       # merge into main, tag vX.Y.Z, merge back into develop
+git push origin main develop --tags
 ```
 
 ## Roadmap
