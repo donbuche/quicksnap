@@ -836,7 +836,9 @@ impl App {
                 ui.label(RichText::new(t("The same commands are in the menu-bar icon.")).size(12.0).color(pal.hint));
             });
             // language picker in the top-right corner
-            let picker = Rect::from_min_size(egui::pos2(full.right() - 136.0, full.top() + theme::TITLEBAR + 8.0), vec2(122.0, 28.0));
+            // as far from the right edge as from the top one
+            let margin = theme::TITLEBAR + 8.0;
+            let picker = Rect::from_min_size(egui::pos2(full.right() - margin - 122.0, full.top() + margin), vec2(122.0, 28.0));
             ui.scope_builder(egui::UiBuilder::new().max_rect(picker).layout(egui::Layout::right_to_left(egui::Align::Center)), |ui| {
                 i18n::lang_picker(ui, &mut self.settings.language, false);
             });

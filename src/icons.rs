@@ -34,6 +34,9 @@ pub enum Icon {
     Clipboard,
     Folder,
     Image,
+    // editor actions
+    Copy,
+    OpenExternal,
 }
 
 fn p(r: Rect, x: f32, y: f32) -> Pos2 {
@@ -234,6 +237,17 @@ pub fn paint(painter: &Painter, r: Rect, icon: Icon, c: Color32) {
                 vec![p(r, 0.1, 0.25), p(r, 0.4, 0.25), p(r, 0.47, 0.35), p(r, 0.9, 0.35), p(r, 0.9, 0.8), p(r, 0.1, 0.8)],
                 s,
             ));
+        }
+        Icon::Copy => {
+            // two overlapping sheets
+            painter.rect_stroke(Rect::from_min_max(p(r, 0.34, 0.12), p(r, 0.88, 0.66)), 2.0, s, egui::StrokeKind::Middle);
+            painter.add(Shape::line(vec![p(r, 0.24, 0.34), p(r, 0.12, 0.34), p(r, 0.12, 0.88), p(r, 0.66, 0.88), p(r, 0.66, 0.76)], s));
+        }
+        Icon::OpenExternal => {
+            // a window with an arrow leaving its top-right corner
+            painter.add(Shape::line(vec![p(r, 0.44, 0.18), p(r, 0.14, 0.18), p(r, 0.14, 0.86), p(r, 0.82, 0.86), p(r, 0.82, 0.56)], s));
+            painter.line_segment([p(r, 0.46, 0.54), p(r, 0.86, 0.14)], s);
+            painter.add(Shape::line(vec![p(r, 0.6, 0.14), p(r, 0.86, 0.14), p(r, 0.86, 0.4)], s));
         }
         Icon::Image => {
             painter.rect_stroke(Rect::from_min_max(p(r, 0.12, 0.2), p(r, 0.88, 0.8)), 2.0, s, egui::StrokeKind::Middle);
