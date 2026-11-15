@@ -1,0 +1,31 @@
+# Changelog
+
+All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://semver.org).
+
+## [0.2.0] - 2026-11-16
+
+### Added
+- Glass look: see-through main window with the desktop blurred behind it (macOS
+  vibrancy), a colour-gradient backdrop and see-through panels with a soft sheen
+- No visible title bar: the app runs up to the top edge, with only the window buttons
+- Violet-to-blue accent gradient and a turquoise hover colour with a glow
+- Custom colour picker with a hex code field, fixed size and small markers
+- Zoom by pinching the trackpad or ⌘ + scroll, around the pointer
+- Zoom menu in one "100% ⌄" button (zoom in/out, fit, original size, picture size);
+  double-click switches between fit and 100 %
+
+### Changed
+- Editor: two top bars instead of three; Copy and Open in… are icon buttons
+- Preferences use the same gradient backdrop
+- Language picker on the home screen as far from the right edge as from the top
+
+### Removed
+- The darker red from the colour palette (it looked like a second pure red)
+
+## [0.1.0] - 2026-11-15
+
+First version: area, frozen-area, full-screen and delayed captures, screen recording,
+annotation editor, menu-bar app, global hotkeys and an English/Spanish/Catalan interface.
+
+[0.2.0]: https://github.com/donbuche/quicksnap/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/donbuche/quicksnap/releases/tag/v0.1.0
