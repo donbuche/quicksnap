@@ -1,5 +1,9 @@
-//! Light and dark colour sets plus the "glass" look: rounded, semi-opaque
-//! panels laid over a blurred copy of what is behind them.
+//! Light and dark colour sets plus the "glass" look: rounded, see-through
+//! panels with a soft sheen, floating over an "aurora" backdrop (a colour
+//! gradient with glowing blobs) through which, on macOS, the desktop shows
+//! blurred.
+
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use egui::epaint::{RectShape, Shadow};
 use egui::{pos2, vec2, Color32, Context, CornerRadius, Painter, Rect, Stroke, StrokeKind, TextureId, Ui};
@@ -35,11 +39,19 @@ pub struct Pal {
     pub text: Color32,
     pub hint: Color32,
     pub accent: Color32,
+    /// The accent is a gradient from `accent` (violet) to `accent2`, the blue
+    /// of the aurora's lower-left glow.
+    pub accent2: Color32,
+    /// Under the pointer things light up in a turquoise gradient (the colour
+    /// of the aurora's lower glow), from `hover_a` to `hover_b`.
+    pub hover_a: Color32,
+    pub hover_b: Color32,
     pub accent_soft: Color32,
     pub control: Color32,
     pub hover: Color32,
-    pub canvas_tint: Color32,
     pub shadow: Color32,
+    /// Light along the top edge of a glass panel (alpha 0-255).
+    pub sheen: u8,
 }
 
 const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Color32 {
@@ -53,37 +65,91 @@ const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Color32 {
 
 pub const LIGHT: Pal = Pal {
     dark: false,
-    bg: Color32::from_rgb(0xf2, 0xf2, 0xf7),
-    glass: rgba(246, 246, 248, 190),
-    glass_strong: rgba(248, 248, 250, 235),
-    card: rgba(255, 255, 255, 215),
-    border: rgba(0, 0, 0, 22),
-    text: Color32::from_rgb(0x1c, 0x1c, 0x1e),
-    hint: Color32::from_rgb(0x6e, 0x6e, 0x73),
-    accent: Color32::from_rgb(0x00, 0x7a, 0xff),
-    accent_soft: rgba(0, 122, 255, 40),
-    control: rgba(0, 0, 0, 14),
-    hover: rgba(0, 0, 0, 24),
-    canvas_tint: rgba(236, 236, 240, 170),
-    shadow: rgba(0, 0, 0, 40),
+    bg: Color32::from_rgb(0xf3, 0xf1, 0xfb),
+    glass: rgba(255, 255, 255, 150),
+    glass_strong: rgba(252, 251, 255, 220),
+    card: rgba(255, 255, 255, 165),
+    border: rgba(70, 50, 140, 30),
+    text: Color32::from_rgb(0x1d, 0x1b, 0x2b),
+    hint: Color32::from_rgb(0x6b, 0x67, 0x80),
+    accent: Color32::from_rgb(0x74, 0x52, 0xf5),
+    accent2: Color32::from_rgb(0x4b, 0x5c, 0xe8),
+    hover_a: Color32::from_rgb(0x0e, 0xa5, 0xb9),
+    hover_b: Color32::from_rgb(0x22, 0xc8, 0xe0),
+    accent_soft: rgba(116, 82, 245, 38),
+    control: rgba(60, 40, 130, 16),
+    hover: rgba(60, 40, 130, 28),
+    shadow: rgba(60, 30, 120, 38),
+    sheen: 150,
 };
 
 pub const DARK: Pal = Pal {
     dark: true,
-    bg: Color32::from_rgb(0x1c, 0x1c, 0x1e),
-    glass: rgba(38, 38, 42, 190),
-    glass_strong: rgba(44, 44, 48, 235),
-    card: rgba(52, 52, 56, 200),
-    border: Color32::from_rgb(64, 64, 70),
-    text: Color32::from_rgb(0xf2, 0xf2, 0xf7),
-    hint: Color32::from_rgb(0x98, 0x98, 0x9d),
-    accent: Color32::from_rgb(0x0a, 0x84, 0xff),
-    accent_soft: rgba(10, 132, 255, 50),
+    bg: Color32::from_rgb(0x15, 0x12, 0x26),
+    glass: rgba(34, 28, 60, 140),
+    glass_strong: rgba(32, 27, 54, 225),
+    card: rgba(255, 255, 255, 16),
+    border: rgba(255, 255, 255, 30),
+    text: Color32::from_rgb(0xf4, 0xf2, 0xff),
+    hint: Color32::from_rgb(0xa8, 0xa3, 0xc4),
+    accent: Color32::from_rgb(0x8b, 0x6c, 0xff),
+    accent2: Color32::from_rgb(0x4f, 0x5b, 0xf5),
+    hover_a: Color32::from_rgb(0x12, 0xb5, 0xc8),
+    hover_b: Color32::from_rgb(0x2a, 0xd8, 0xee),
+    accent_soft: rgba(139, 108, 255, 55),
     control: rgba(255, 255, 255, 18),
     hover: rgba(255, 255, 255, 30),
-    canvas_tint: rgba(18, 18, 20, 170),
-    shadow: rgba(0, 0, 0, 110),
+    shadow: rgba(0, 0, 0, 120),
+    sheen: 34,
 };
+
+/// Height of the macOS title bar. The main window has no visible title bar:
+/// the app is drawn under it and only the red-yellow-green buttons float on
+/// top, so nothing clickable may sit in this band.
+pub const TITLEBAR: f32 = if cfg!(target_os = "macos") { 28.0 } else { 0.0 };
+
+/// Whether the main window is see-through, with the desktop showing blurred
+/// behind it (macOS vibrancy). Without it the aurora is painted opaque.
+static VIBRANT: AtomicBool = AtomicBool::new(false);
+
+pub fn set_vibrant(on: bool) {
+    VIBRANT.store(on, Ordering::Relaxed);
+}
+
+pub fn vibrant() -> bool {
+    VIBRANT.load(Ordering::Relaxed)
+}
+
+/// Makes the main window frosted glass: the desktop shows blurred behind it.
+/// Returns whether it worked.
+///
+/// The blur view goes *behind* the window's content view, as a sibling in
+/// the window's frame view. egui draws straight into the content view, so a
+/// blur view placed inside it (as `window-vibrancy` does, which suits web
+/// views) would cover the whole interface.
+#[cfg(target_os = "macos")]
+pub fn apply_vibrancy(cc: &eframe::CreationContext<'_>) -> bool {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{
+        NSAutoresizingMaskOptions, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView,
+        NSWindowOrderingMode,
+    };
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    let Ok(handle) = cc.window_handle() else { return false };
+    let RawWindowHandle::AppKit(h) = handle.as_raw() else { return false };
+    let Some(mtm) = MainThreadMarker::new() else { return false };
+    // SAFETY: the handle points at the live content view of this window, and
+    // we are on the main thread.
+    let content: &NSView = unsafe { h.ns_view.cast::<NSView>().as_ref() };
+    let Some(frame_view) = (unsafe { content.superview() }) else { return false };
+    let blur = NSVisualEffectView::initWithFrame(mtm.alloc(), frame_view.bounds());
+    blur.setMaterial(NSVisualEffectMaterial::UnderWindowBackground);
+    blur.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
+    blur.setState(NSVisualEffectState::Active);
+    blur.setAutoresizingMask(NSAutoresizingMaskOptions::ViewWidthSizable | NSAutoresizingMaskOptions::ViewHeightSizable);
+    frame_view.addSubview_positioned_relativeTo(&blur, NSWindowOrderingMode::Below, Some(content));
+    true
+}
 
 pub fn pal(ctx: &Context) -> Pal {
     if ctx.style().visuals.dark_mode { DARK } else { LIGHT }
@@ -95,18 +161,19 @@ pub fn setup_styles(ctx: &Context) {
         ctx.style_mut_of(theme, |s| {
             let v = &mut s.visuals;
             v.panel_fill = p.bg;
+            v.faint_bg_color = p.control;
             v.window_fill = p.glass_strong;
-            v.extreme_bg_color = if p.dark { Color32::from_rgb(0x2a, 0x2a, 0x2d) } else { Color32::WHITE };
-            v.window_corner_radius = CornerRadius::same(14);
+            v.extreme_bg_color = if p.dark { Color32::from_rgb(0x24, 0x1f, 0x3a) } else { Color32::WHITE };
+            v.window_corner_radius = CornerRadius::same(16);
             v.menu_corner_radius = CornerRadius::same(10);
             v.window_stroke = Stroke::new(1.0_f32, p.border);
-            v.window_shadow = Shadow { offset: [0, 10], blur: 30, spread: 0, color: p.shadow };
+            v.window_shadow = Shadow { offset: [0, 14], blur: 40, spread: 0, color: p.shadow };
             v.popup_shadow = Shadow { offset: [0, 6], blur: 18, spread: 0, color: p.shadow };
             v.selection.bg_fill = p.accent;
             v.selection.stroke = Stroke::new(1.0_f32, Color32::WHITE);
             v.hyperlink_color = p.accent;
             v.override_text_color = Some(p.text);
-            let r = CornerRadius::same(8);
+            let r = CornerRadius::same(9);
             for w in [&mut v.widgets.noninteractive, &mut v.widgets.inactive, &mut v.widgets.hovered, &mut v.widgets.active, &mut v.widgets.open] {
                 w.corner_radius = r;
             }
@@ -116,39 +183,157 @@ pub fn setup_styles(ctx: &Context) {
             v.widgets.hovered.weak_bg_fill = p.hover;
             v.widgets.hovered.bg_fill = p.hover;
             v.widgets.hovered.bg_stroke = Stroke::new(1.0_f32, p.border);
+            v.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, p.text);
             v.widgets.active.weak_bg_fill = p.accent_soft;
             v.widgets.active.bg_fill = p.accent;
             v.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, p.border);
             s.spacing.button_padding = vec2(10.0, 5.0);
             s.spacing.interact_size.y = 24.0;
-            s.spacing.slider_rail_height = 5.0;
+            s.spacing.slider_rail_height = 4.0;
         });
     }
 }
 
 /// Soft drop shadow behind a rounded rectangle.
 pub fn shadow(p: &Painter, r: Rect, radius: u8, pal: &Pal) {
-    let sh = Shadow { offset: [0, 8], blur: 26, spread: 0, color: pal.shadow };
+    let sh = Shadow { offset: [0, 10], blur: 30, spread: 0, color: pal.shadow };
     p.add(sh.as_shape(r, CornerRadius::same(radius)));
 }
 
-/// Shapes of a frosted-glass panel: a soft shadow, the blurred backdrop (if
-/// any) and a semi-opaque tint with a hairline border, all rounded.
-pub fn glass_shapes(r: Rect, radius: u8, pal: &Pal, backdrop: Option<Backdrop>) -> Vec<egui::Shape> {
-    let mut v: Vec<egui::Shape> = Vec::new();
-    let sh = Shadow { offset: [0, 8], blur: 26, spread: 0, color: pal.shadow };
-    v.push(sh.as_shape(r, CornerRadius::same(radius)).into());
-    if let Some(b) = backdrop {
-        v.push(textured_rounded(r, radius as f32, &b));
+/// A coloured glow (the accent) around a rounded rectangle.
+pub fn glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
+    if amount <= 0.01 {
+        return;
     }
-    v.push(RectShape::new(r, CornerRadius::same(radius), pal.glass, Stroke::new(1.0_f32, pal.border), StrokeKind::Inside).into());
+    let c = mix(pal.accent, pal.accent2, 0.5).gamma_multiply(if pal.dark { 0.55 } else { 0.40 } * amount);
+    let sh = Shadow { offset: [0, 4], blur: 16, spread: 0, color: c };
+    p.add(sh.as_shape(r, CornerRadius::same(radius)));
+}
+
+/// A turquoise glow (the hover colour) around a rounded rectangle.
+pub fn hover_glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
+    if amount <= 0.01 {
+        return;
+    }
+    let c = mix(pal.hover_a, pal.hover_b, 0.5).gamma_multiply(if pal.dark { 0.55 } else { 0.45 } * amount);
+    let sh = Shadow { offset: [0, 4], blur: 18, spread: 0, color: c };
+    p.add(sh.as_shape(r, CornerRadius::same(radius)));
+}
+
+/// A rounded rectangle filled with the turquoise hover gradient.
+pub fn hover_fill(p: &Painter, r: Rect, radius: f32, pal: &Pal, alpha: f32) {
+    if alpha <= 0.0 {
+        return;
+    }
+    let (a, b) = (pal.hover_a, pal.hover_b);
+    let tex = cached_tex(p.ctx(), &format!("hover-{}", pal.dark), || gradient_image(a, b, true));
+    let tint = Color32::WHITE.gamma_multiply(alpha.clamp(0.0, 1.0));
+    p.add(RectShape::filled(r, radius, tint).with_texture(tex, UV_FULL));
+}
+
+/// A small texture made once per context and kept in its memory.
+fn cached_tex(ctx: &Context, name: &str, make: impl FnOnce() -> egui::ColorImage) -> TextureId {
+    let id = egui::Id::new(("quicksnap-tex", name));
+    if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
+        return t.id();
+    }
+    let t = ctx.load_texture(name, make(), egui::TextureOptions::LINEAR);
+    let tid = t.id();
+    ctx.data_mut(|d| d.insert_temp(id, t));
+    tid
+}
+
+const UV_FULL: Rect = Rect { min: pos2(0.0, 0.0), max: pos2(1.0, 1.0) };
+
+/// A linear gradient texture between two colours: diagonal (top-left to
+/// bottom-right) or vertical.
+fn gradient_image(a: Color32, b: Color32, diagonal: bool) -> egui::ColorImage {
+    let n = 64usize;
+    let mut px = Vec::with_capacity(n * n);
+    for y in 0..n {
+        for x in 0..n {
+            let k = if diagonal { (x + y) as f32 / (2 * n - 2) as f32 } else { y as f32 / (n - 1) as f32 };
+            px.push(mix(a, b, k));
+        }
+    }
+    egui::ColorImage { size: [n, n], source_size: vec2(n as f32, n as f32), pixels: px }
+}
+
+fn accent_tex(ctx: &Context, pal: &Pal) -> TextureId {
+    let (a, b) = (pal.accent, pal.accent2);
+    cached_tex(ctx, &format!("accent-{}", pal.dark), || gradient_image(a, b, true))
+}
+
+/// A rounded rectangle filled with the accent gradient.
+pub fn accent_fill(p: &Painter, r: Rect, radius: f32, pal: &Pal, alpha: f32) {
+    let tex = accent_tex(p.ctx(), pal);
+    let tint = Color32::WHITE.gamma_multiply(alpha.clamp(0.0, 1.0));
+    p.add(RectShape::filled(r, radius, tint).with_texture(tex, UV_FULL));
+}
+
+/// Light falling on the top part of a glass surface, fading out downwards.
+fn sheen_shape(ctx: &Context, r: Rect, radius: u8, pal: &Pal) -> egui::Shape {
+    let tex = cached_tex(ctx, "sheen", || gradient_image(Color32::WHITE, Color32::TRANSPARENT, false));
+    let tint = Color32::WHITE.gamma_multiply(pal.sheen as f32 / 255.0);
+    // only the upper part of the panel catches the light
+    let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, (r.height() / 38.0).max(1.0)));
+    RectShape::filled(r.shrink(1.0), (radius as f32 - 1.0).max(0.0), tint).with_texture(tex, uv).into()
+}
+
+/// How many shapes [`glass_shapes`] can return (for reserving slots).
+const GLASS_SHAPES_MAX: usize = 8;
+
+/// Shapes of a frosted-glass panel: a soft shadow, what is behind it (if
+/// given), a see-through tint, a sheen along the top and a hairline border,
+/// all rounded.
+pub fn glass_shapes(ctx: &Context, r: Rect, radius: u8, pal: &Pal, backdrops: &[Backdrop]) -> Vec<egui::Shape> {
+    let mut v: Vec<egui::Shape> = Vec::new();
+    let sh = Shadow { offset: [0, 10], blur: 30, spread: 0, color: pal.shadow };
+    v.push(sh.as_shape(r, CornerRadius::same(radius)).into());
+    for b in backdrops.iter().take(GLASS_SHAPES_MAX - 4) {
+        v.push(textured_rounded(r, radius as f32, b));
+    }
+    v.push(RectShape::filled(r, CornerRadius::same(radius), pal.glass).into());
+    v.push(sheen_shape(ctx, r, radius, pal));
+    v.push(RectShape::stroke(r, CornerRadius::same(radius), Stroke::new(1.0_f32, pal.border), StrokeKind::Inside).into());
     v
 }
 
-pub fn glass(p: &Painter, r: Rect, radius: u8, pal: &Pal, backdrop: Option<Backdrop>) {
-    for s in glass_shapes(r, radius, pal, backdrop) {
+pub fn glass(p: &Painter, r: Rect, radius: u8, pal: &Pal, backdrops: &[Backdrop]) {
+    for s in glass_shapes(p.ctx(), r, radius, pal, backdrops) {
         p.add(s);
     }
+}
+
+/// A button filled with the accent gradient and white text.
+pub fn gradient_button(ui: &mut Ui, text: &str, min: egui::Vec2) -> egui::Response {
+    let pal = pal(ui.ctx());
+    let slot = ui.painter().add(egui::Shape::Noop);
+    let resp = ui.add(
+        egui::Button::new(egui::RichText::new(text).color(Color32::WHITE).strong())
+            .fill(Color32::TRANSPARENT)
+            .stroke(Stroke::NONE)
+            .min_size(min)
+            .corner_radius(9.0),
+    );
+    let hov = hover_amount(ui.ctx(), resp.id, resp.hovered());
+    let r = resp.rect;
+    let mut shapes: Vec<egui::Shape> = Vec::new();
+    let rest = mix(pal.accent, pal.accent2, 0.5);
+    let c = mix(rest, mix(pal.hover_a, pal.hover_b, 0.5), hov).gamma_multiply(if pal.dark { 0.5 } else { 0.4 } * (0.6 + 0.4 * hov));
+    shapes.push(Shadow { offset: [0, 4], blur: 14, spread: 0, color: c }.as_shape(r, CornerRadius::same(9)).into());
+    let tex = accent_tex(ui.ctx(), &pal);
+    shapes.push(RectShape::filled(r, 9.0, Color32::WHITE).with_texture(tex, UV_FULL).into());
+    if hov > 0.0 {
+        let (ha, hb) = (pal.hover_a, pal.hover_b);
+        let htex = cached_tex(ui.ctx(), &format!("hover-{}", pal.dark), || gradient_image(ha, hb, true));
+        shapes.push(RectShape::filled(r, 9.0, Color32::WHITE.gamma_multiply(hov)).with_texture(htex, UV_FULL).into());
+    }
+    if resp.is_pointer_button_down_on() {
+        shapes.push(RectShape::filled(r, 9.0, Color32::from_black_alpha(30)).into());
+    }
+    ui.painter().set(slot, egui::Shape::Vec(shapes));
+    resp
 }
 
 /// A blurred picture stretched over `area` (showing the `uv` part of it).
@@ -157,6 +342,8 @@ pub struct Backdrop {
     pub tex: TextureId,
     pub area: Rect,
     pub uv: Rect,
+    /// Multiplies the picture (white = as it is).
+    pub tint: Color32,
 }
 
 impl Backdrop {
@@ -182,12 +369,17 @@ impl Backdrop {
             let w = aa / ia;
             Rect::from_min_max(pos2(0.5 - w / 2.0, 0.0), pos2(0.5 + w / 2.0, 1.0))
         };
-        Backdrop { tex, area, uv }
+        Backdrop { tex, area, uv, tint: Color32::WHITE }
+    }
+
+    /// The same backdrop, faded to `alpha` (0-1).
+    pub fn faded(self, alpha: f32) -> Backdrop {
+        Backdrop { tint: Color32::WHITE.gamma_multiply(alpha), ..self }
     }
 
     pub fn paint(&self, p: &Painter) {
         let mut mesh = egui::Mesh::with_texture(self.tex);
-        mesh.add_rect_with_uv(self.area, self.uv, Color32::WHITE);
+        mesh.add_rect_with_uv(self.area, self.uv, self.tint);
         p.add(egui::Shape::mesh(mesh));
     }
 }
@@ -208,7 +400,7 @@ pub fn textured_rounded(r: Rect, radius: f32, b: &Backdrop) -> egui::Shape {
         )
     };
     let c = r.center();
-    mesh.vertices.push(egui::epaint::Vertex { pos: c, uv: uv(c), color: Color32::WHITE });
+    mesh.vertices.push(egui::epaint::Vertex { pos: c, uv: uv(c), color: b.tint });
     let corners = [
         (pos2(r.max.x - rad, r.min.y + rad), -90.0f32),
         (pos2(r.max.x - rad, r.max.y - rad), 0.0),
@@ -219,7 +411,7 @@ pub fn textured_rounded(r: Rect, radius: f32, b: &Backdrop) -> egui::Shape {
         for i in 0..=16 {
             let a = (start + i as f32 * 5.625).to_radians();
             let p = pos2(cc.x + rad * a.cos(), cc.y + rad * a.sin());
-            mesh.vertices.push(egui::epaint::Vertex { pos: p, uv: uv(p), color: Color32::WHITE });
+            mesh.vertices.push(egui::epaint::Vertex { pos: p, uv: uv(p), color: b.tint });
         }
     }
     let n = mesh.vertices.len() as u32 - 1;
@@ -237,11 +429,11 @@ pub fn floating<R>(
     pivot: egui::Align2,
     pos: egui::Pos2,
     pal: &Pal,
-    backdrop: Option<Backdrop>,
+    backdrops: &[Backdrop],
     add: impl FnOnce(&mut Ui) -> R,
 ) -> egui::InnerResponse<R> {
     egui::Area::new(egui::Id::new(id)).pivot(pivot).fixed_pos(pos).order(egui::Order::Middle).show(ctx, |ui| {
-        let slots: Vec<_> = (0..3).map(|_| ui.painter().add(egui::Shape::Noop)).collect();
+        let slots: Vec<_> = (0..GLASS_SHAPES_MAX).map(|_| ui.painter().add(egui::Shape::Noop)).collect();
         let inner = egui::Frame::new().inner_margin(egui::Margin::symmetric(8, 6)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
@@ -250,7 +442,7 @@ pub fn floating<R>(
             .inner
         });
         let rect = inner.response.rect;
-        for (slot, shape) in slots.into_iter().zip(glass_shapes(rect, 14, pal, backdrop)) {
+        for (slot, shape) in slots.into_iter().zip(glass_shapes(ctx, rect, 16, pal, backdrops)) {
             ui.painter().set(slot, shape);
         }
         inner.inner
@@ -274,35 +466,74 @@ pub fn blurred_backdrop(img: &RgbaImage) -> egui::ColorImage {
     egui::ColorImage::from_rgba_unmultiplied([tw as usize, th as usize], small.as_raw())
 }
 
-/// Soft colour blobs (the aperture's colours) for the home screen backdrop.
-pub fn blob_backdrop(dark: bool) -> egui::ColorImage {
-    let (w, h) = (160usize, 100usize);
-    let base = if dark { [28.0f32, 28.0, 32.0] } else { [242.0f32, 242.0, 247.0] };
-    let blobs: [(f32, f32, f32, [f32; 3]); 5] = [
-        (0.18, 0.25, 0.32, [255.0, 59.0, 48.0]),
-        (0.80, 0.20, 0.30, [10.0, 132.0, 255.0]),
-        (0.55, 0.85, 0.34, [52.0, 199.0, 89.0]),
-        (0.10, 0.90, 0.26, [255.0, 204.0, 0.0]),
-        (0.92, 0.80, 0.28, [175.0, 82.0, 222.0]),
-    ];
-    let strength = if dark { 0.45 } else { 0.35 };
+/// The aurora: a diagonal gradient with soft glowing colour blobs. With
+/// `see_through` it is partly transparent so the (blurred) desktop shows.
+pub fn aurora_image(dark: bool, see_through: bool) -> egui::ColorImage {
+    let (w, h) = (192usize, 120usize);
+    let (base_a, base_b) = if dark {
+        ([20.0f32, 15.0, 42.0], [10.0f32, 22.0, 48.0])
+    } else {
+        ([246.0f32, 242.0, 255.0], [236.0f32, 245.0, 255.0])
+    };
+    // x, y, radius, colour
+    let blobs: [(f32, f32, f32, [f32; 3]); 5] = if dark {
+        [
+            (0.12, 0.08, 0.55, [124.0, 92.0, 255.0]),
+            (0.92, 0.12, 0.50, [240.0, 72.0, 200.0]),
+            (0.82, 0.98, 0.55, [34.0, 200.0, 238.0]),
+            (0.05, 0.95, 0.45, [79.0, 70.0, 229.0]),
+            (0.50, 0.55, 0.40, [150.0, 60.0, 220.0]),
+        ]
+    } else {
+        [
+            (0.12, 0.08, 0.55, [167.0, 139.0, 250.0]),
+            (0.92, 0.12, 0.50, [244.0, 143.0, 214.0]),
+            (0.82, 0.98, 0.55, [125.0, 211.0, 252.0]),
+            (0.05, 0.95, 0.45, [165.0, 180.0, 252.0]),
+            (0.50, 0.55, 0.40, [216.0, 180.0, 254.0]),
+        ]
+    };
+    let strength = if dark { 0.42 } else { 0.55 };
+    let base_alpha = match (see_through, dark) {
+        (false, _) => 1.0,
+        (true, true) => 0.70,
+        (true, false) => 0.72,
+    };
     let mut px = Vec::with_capacity(w * h);
     for y in 0..h {
         for x in 0..w {
-            let fx = x as f32 / w as f32;
-            let fy = y as f32 / h as f32;
-            let mut c = base;
+            let fx = x as f32 / (w - 1) as f32;
+            let fy = y as f32 / (h - 1) as f32;
+            let k = (fx + fy) / 2.0;
+            let mut c = [0.0f32; 3];
+            for i in 0..3 {
+                c[i] = base_a[i] + (base_b[i] - base_a[i]) * k;
+            }
+            let mut alpha = base_alpha;
             for (bx, by, r, col) in blobs {
                 let d = (((fx - bx) * 1.6).powi(2) + (fy - by).powi(2)).sqrt();
-                let a = (1.0 - d / r).clamp(0.0, 1.0).powf(1.6) * strength;
+                let a = (1.0 - d / r).clamp(0.0, 1.0).powf(1.8) * strength;
                 for i in 0..3 {
                     c[i] = c[i] * (1.0 - a) + col[i] * a;
                 }
+                alpha = alpha + (1.0 - alpha) * a * 0.6;
             }
-            px.push(Color32::from_rgb(c[0] as u8, c[1] as u8, c[2] as u8));
+            px.push(Color32::from_rgba_unmultiplied(c[0] as u8, c[1] as u8, c[2] as u8, (alpha * 255.0) as u8));
         }
     }
     egui::ColorImage { size: [w, h], source_size: vec2(w as f32, h as f32), pixels: px }
+}
+
+/// Paints the aurora over `area` and returns it as a backdrop (for glass
+/// panels that need to hide what is under them). `see_through` only takes
+/// effect when the window really is see-through.
+pub fn background(p: &Painter, area: Rect, pal: &Pal, see_through: bool) -> Backdrop {
+    let st = see_through && vibrant();
+    let key = format!("aurora-{}-{}", pal.dark, st);
+    let tex = cached_tex(p.ctx(), &key, || aurora_image(pal.dark, st));
+    let bd = Backdrop::cover(tex, area, vec2(192.0, 120.0));
+    bd.paint(p);
+    bd
 }
 
 /// Rounded sections ("cards") for the settings forms. Shapes are reserved

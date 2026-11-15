@@ -80,15 +80,19 @@ impl SettingsUi {
     pub fn show(&mut self, ctx: &Context, s: &mut Settings) -> Changes {
         let mut ch = Changes::default();
         let pal = crate::theme::pal(ctx);
+        // its own window, which is not see-through: an opaque aurora under
+        // everything
+        let bg = ctx.layer_painter(egui::LayerId::background());
+        crate::theme::background(&bg, ctx.screen_rect(), &pal, false);
         egui::TopBottomPanel::top("prefs_toolbar")
             .exact_height(TOOLBAR_HEIGHT)
             .show_separator_line(false)
-            .frame(Frame::new().fill(pal.glass_strong).stroke(Stroke::new(1.0_f32, pal.border)))
+            .frame(Frame::new().fill(pal.glass).stroke(Stroke::new(1.0_f32, pal.border)))
             .show(ctx, |ui| self.toolbar(ui));
 
         let mut content_h = 0.0;
         egui::CentralPanel::default()
-            .frame(Frame::new().fill(pal.bg).inner_margin(Margin { left: 16, right: 16, top: 14, bottom: 14 }))
+            .frame(Frame::new().inner_margin(Margin { left: 16, right: 16, top: 14, bottom: 14 }))
             .show(ctx, |ui| {
                 ui.style_mut().spacing.item_spacing = vec2(8.0, 7.0);
                 let top = ui.cursor().top();
@@ -147,7 +151,7 @@ impl SettingsUi {
             let pal = crate::theme::pal(ui.ctx());
             let p = ui.painter();
             if sel {
-                p.rect_filled(r, CornerRadius::same(10), pal.accent_soft);
+                crate::theme::accent_fill(p, r, 10.0, &pal, if pal.dark { 0.28 } else { 0.18 });
             } else if resp.hovered() {
                 p.rect_filled(r, CornerRadius::same(10), pal.hover);
             }

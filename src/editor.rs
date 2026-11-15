@@ -20,10 +20,11 @@ use crate::settings::{Settings, LINE_WIDTH_MAX, LINE_WIDTH_MIN};
 use crate::shapes::{self, AnnotFont, Handle, Kind, Prim, Shape, TextStyle, TEXT_SIZE_MAX, TEXT_SIZE_MIN};
 use crate::theme::{self, Backdrop, Pal};
 
-/// Palette from the original's tool-preferences panel, plus pure red which
-/// is the starting colour.
-pub const PALETTE: [u32; 10] =
-    [0xff0000, 0xe504c3, 0xe50404, 0x53e504, 0x1f63be, 0xffea00, 0xff7200, 0x898989, 0x000000, 0xffffff];
+/// Palette from the original's tool-preferences panel. Pure red is the
+/// starting colour; the original's darker red (0xe50404) is left out because
+/// next to it the two looked like the same swatch twice.
+pub const PALETTE: [u32; 9] =
+    [0xff0000, 0xe504c3, 0x53e504, 0x1f63be, 0xffea00, 0xff7200, 0x898989, 0x000000, 0xffffff];
 
 /// Crop highlighter: black at 30 % outside the crop (0x100775c28, colour
 /// constant 0x100904c20 = 0, 0, 0, 0.3).
@@ -34,6 +35,9 @@ pub const UNDO_LIMIT: usize = 40;
 const BAR_MARGIN: f32 = 12.0;
 const BAR_GAP: f32 = 10.0;
 const BAR_ROW: f32 = 54.0;
+/// Zoom limits (screen points per picture pixel).
+const ZOOM_MIN: f32 = 0.05;
+const ZOOM_MAX: f32 = 8.0;
 const SHADOW_TIP: &str = "Drop shadow around the picture and under the annotations";
 /// Radius of a selection handle and how far from it a press still grabs it
 /// (screen points).
@@ -133,7 +137,9 @@ pub struct Editor {
     backdrop_tex: Option<TextureHandle>,
     /// The picture strongly blurred, sampled by Blur items.
     blur_tex: Option<TextureHandle>,
-    backdrop: Option<Backdrop>,
+    /// What the floating panels must reproduce behind them (the aurora and
+    /// the faded, blurred picture) so the picture does not show through.
+    backdrop: Vec<Backdrop>,
     tex_dirty: bool,
     pub tool: Tool,
     drag_start: Option<Pos2>,
@@ -157,8 +163,13 @@ pub struct Editor {
     /// Widths of the tools, zoom and actions bars as last drawn, and whether
     /// the zoom bar had to drop to a second row because they don't fit side
     /// by side.
-    bar_widths: [f32; 3],
-    zoom_below: bool,
+    bar_widths: [f32; 2],
+    /// The window is too narrow for both top bars in one row: the right one
+    /// (zoom and actions) goes on a second row.
+    actions_below: bool,
+    /// Scroll position to apply to the canvas on the next frame (zooming
+    /// keeps the point under the pointer in place).
+    pending_scroll: Option<egui::Vec2>,
     img_rect: Option<Rect>,
     pub title: String,
     pub source: Option<PathBuf>,
@@ -173,7 +184,7 @@ impl Editor {
             texture: None,
             backdrop_tex: None,
             blur_tex: None,
-            backdrop: None,
+            backdrop: Vec::new(),
             tex_dirty: true,
             tool: Tool::Arrow,
             drag_start: None,
@@ -190,8 +201,9 @@ impl Editor {
             last_scale: 1.0,
             resize: None,
             shadows: true,
-            bar_widths: [0.0; 3],
-            zoom_below: false,
+            bar_widths: [0.0; 2],
+            actions_below: false,
+            pending_scroll: None,
             img_rect: None,
             title: title.to_string(),
             source: None,
@@ -351,24 +363,25 @@ impl Editor {
         let mut cmds = Vec::new();
         self.shadows = s.editor_shadow;
         self.shortcuts(ctx, s, font, &mut cmds);
-        // the three top bars side by side need this much room; when the window
-        // is narrower the zoom bar goes under the actions bar
-        let avail = ctx.available_rect();
-        let [tw, zw, aw] = self.bar_widths;
-        let zoom_below = BAR_MARGIN * 2.0 + tw + zw + aw + BAR_GAP * 2.0 > avail.width();
-        if zoom_below != self.zoom_below {
-            self.zoom_below = zoom_below;
+        // the bars stay clear of the (invisible) title bar and its buttons
+        let mut avail = ctx.available_rect();
+        avail.min.y += theme::TITLEBAR;
+        // two top bars: tools on the left, zoom and actions on the right; if
+        // they do not fit side by side the right one goes on a second row
+        let [tw, aw] = self.bar_widths;
+        let actions_below = BAR_MARGIN * 2.0 + tw + aw + BAR_GAP > avail.width();
+        if actions_below != self.actions_below {
+            self.actions_below = actions_below;
             ctx.request_repaint();
         }
-        egui::CentralPanel::default().frame(Frame::new().fill(pal.bg)).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(Frame::new()).show(ctx, |ui| {
             self.canvas(ui, s, font, &pal);
         });
         let tools = self.tools_panel(ctx, s, font, &pal, avail, &mut cmds);
-        let actions = self.actions_panel(ctx, s, &pal, avail, &mut cmds);
+        let actions_at = if self.actions_below { vec2(-BAR_MARGIN, BAR_MARGIN + BAR_ROW) } else { vec2(-BAR_MARGIN, BAR_MARGIN) };
+        let actions = self.actions_panel(ctx, s, &pal, avail.right_top() + actions_at, &mut cmds);
         self.style_panel(ctx, s, &pal, avail);
-        let zoom_at = if self.zoom_below { actions.right_bottom() + vec2(0.0, BAR_GAP) } else { actions.left_top() - vec2(BAR_GAP, 0.0) };
-        let zoom = self.zoom_panel(ctx, &pal, zoom_at);
-        self.bar_widths = [tools.width(), zoom.width(), actions.width()];
+        self.bar_widths = [tools.width(), actions.width()];
         self.text_editor(ctx, font, &pal);
         self.resize_dialog(ctx, font);
         cmds
@@ -420,10 +433,10 @@ impl Editor {
                 cmds.push(Cmd::External);
             }
             if i.consume_key(Modifiers::COMMAND, Key::Equals) || i.consume_key(Modifiers::COMMAND, Key::Plus) {
-                self.zoom = Some(self.last_scale * 1.25);
+                self.zoom = Some((self.last_scale * 1.25).min(ZOOM_MAX));
             }
             if i.consume_key(Modifiers::COMMAND, Key::Minus) {
-                self.zoom = Some((self.last_scale / 1.25).max(0.05));
+                self.zoom = Some((self.last_scale / 1.25).max(ZOOM_MIN));
             }
             if i.consume_key(Modifiers::COMMAND, Key::Num0) {
                 self.zoom = None;
@@ -497,10 +510,12 @@ impl Editor {
     fn tool_button(ui: &mut Ui, pal: &Pal, s: &Settings, icon: Icon, selected: bool, tip: (&str, &str, &str)) -> egui::Response {
         let (rect, resp) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::click());
         let p = ui.painter();
+        let hov = theme::hover_amount(ui.ctx(), resp.id, resp.hovered() && !selected);
         if selected {
-            p.rect_filled(rect, 9.0, pal.accent);
-        } else if resp.hovered() {
-            p.rect_filled(rect, 9.0, pal.hover);
+            theme::glow(p, rect, 9, pal, 1.0);
+            theme::accent_fill(p, rect, 9.0, pal, 1.0);
+        } else if hov > 0.0 {
+            theme::hover_fill(p, rect, 9.0, pal, if pal.dark { 0.35 } else { 0.28 } * hov);
         }
         let col = if selected { Color32::WHITE } else { pal.text };
         icons::paint(p, Rect::from_center_size(rect.center(), vec2(19.0, 19.0)), icon, col);
@@ -520,7 +535,8 @@ impl Editor {
     }
 
     fn tools_panel(&mut self, ctx: &Context, s: &mut Settings, font: &AnnotFont, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) -> Rect {
-        theme::floating(ctx, "tools_panel", Align2::LEFT_TOP, avail.left_top() + vec2(BAR_MARGIN, BAR_MARGIN), pal, self.backdrop, |ui| {
+        let bds = self.backdrop.clone();
+        theme::floating(ctx, "tools_panel", Align2::LEFT_TOP, avail.left_top() + vec2(BAR_MARGIN, BAR_MARGIN), pal, &bds, |ui| {
             if Self::tool_button(ui, pal, s, Icon::Back, false, (t("Home"), "", t("Back to the capture screen"))).clicked() {
                 cmds.push(Cmd::Home);
             }
@@ -565,28 +581,23 @@ impl Editor {
         .rect
     }
 
-    fn actions_panel(&mut self, ctx: &Context, s: &Settings, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) -> Rect {
-        theme::floating(ctx, "actions_panel", Align2::RIGHT_TOP, avail.right_top() + vec2(-BAR_MARGIN, BAR_MARGIN), pal, self.backdrop, |ui| {
-            let b = |t: &str| egui::Button::new(t).min_size(vec2(0.0, 32.0)).corner_radius(9.0);
-            let c = ui.add(b(t("Copy")));
+    /// The right-hand bar: the zoom menu, Copy and Open in… as icons, and
+    /// Save.
+    fn actions_panel(&mut self, ctx: &Context, s: &Settings, pal: &Pal, at: Pos2, cmds: &mut Vec<Cmd>) -> Rect {
+        let bds = self.backdrop.clone();
+        theme::floating(ctx, "actions_panel", Align2::RIGHT_TOP, at, pal, &bds, |ui| {
+            self.zoom_menu(ui, pal);
+            theme::divider(ui, pal);
+            let c = Self::tool_button(ui, pal, s, Icon::Copy, false, (t("Copy image  ⌘C"), "", ""));
             if c.clicked() {
                 cmds.push(Cmd::Copy);
             }
-            if s.show_tooltips_editor {
-                c.on_hover_text(t("Copy image  ⌘C"));
-            }
-            let e = ui.add(b(t("Open in…")));
+            let e = Self::tool_button(ui, pal, s, Icon::OpenExternal, false, (t("External editor  ⌘E"), "", ""));
             if e.clicked() {
                 cmds.push(Cmd::External);
             }
-            if s.show_tooltips_editor {
-                e.on_hover_text(t("External editor  ⌘E"));
-            }
-            let save = egui::Button::new(RichText::new(t("Save")).color(Color32::WHITE).strong())
-                .fill(pal.accent)
-                .min_size(vec2(64.0, 32.0))
-                .corner_radius(9.0);
-            let r = ui.add(save);
+            ui.add_space(2.0);
+            let r = theme::gradient_button(ui, t("Save"), vec2(64.0, 32.0));
             if r.clicked() {
                 cmds.push(Cmd::Save);
             }
@@ -598,9 +609,51 @@ impl Editor {
         .rect
     }
 
+    /// "100% ⌄": a click opens the zoom menu (with the picture size), a
+    /// double-click switches between fitting the window and 100%.
+    fn zoom_menu(&mut self, ui: &mut Ui, pal: &Pal) {
+        let ppp = ui.ctx().pixels_per_point();
+        let pct = (self.last_scale * ppp * 100.0).round();
+        // fixed width, so the bar does not jump as the number changes
+        let resp = ui.add(
+            egui::Button::new(RichText::new(format!("{pct}%\u{2002}\u{2002}")).size(12.5).color(pal.text))
+                .fill(Color32::TRANSPARENT)
+                .min_size(vec2(72.0, 32.0))
+                .corner_radius(9.0),
+        );
+        // the chevron, drawn (the fonts at hand have no good one)
+        let c = pos2(resp.rect.right() - 12.0, resp.rect.center().y + 1.0);
+        let stroke = Stroke::new(1.4_f32, pal.hint);
+        ui.painter().add(egui::Shape::line(vec![c + vec2(-3.5, -2.0), c + vec2(0.0, 1.5), c + vec2(3.5, -2.0)], stroke));
+        let resp = resp.on_hover_text(t("Zoom  ·  double-click: fit / 100%"));
+        if resp.double_clicked() {
+            self.zoom = if self.zoom.is_none() { Some(1.0 / ppp) } else { None };
+        }
+        egui::Popup::menu(&resp).close_behavior(egui::PopupCloseBehavior::CloseOnClick).show(|ui| {
+            ui.set_min_width(200.0);
+            if ui.add(egui::Button::new(t("Zoom in")).shortcut_text("⌘+")).clicked() {
+                self.zoom = Some((self.last_scale * 1.25).min(ZOOM_MAX));
+            }
+            if ui.add(egui::Button::new(t("Zoom out")).shortcut_text("⌘−")).clicked() {
+                self.zoom = Some((self.last_scale / 1.25).max(ZOOM_MIN));
+            }
+            ui.separator();
+            if ui.add(egui::Button::new(t("Fit to window")).shortcut_text("⌘0")).clicked() {
+                self.zoom = None;
+            }
+            if ui.add(egui::Button::new(t("Original size"))).clicked() {
+                self.zoom = Some(1.0 / ppp);
+            }
+            ui.separator();
+            let (w, h) = self.size();
+            ui.label(RichText::new(format!("{w} × {h} px")).size(12.0).color(pal.hint));
+        });
+    }
+
     /// The always-visible style bar. It edits the selected item if there is
     /// one, and sets the defaults for new items either way.
     fn style_panel(&mut self, ctx: &Context, s: &mut Settings, pal: &Pal, avail: Rect) {
+        let bds = self.backdrop.clone();
         let target = self.selected.filter(|i| *i < self.doc.shapes.len());
         let (color, width, shadow, tsize, tstyle, is_text, is_bubble, label) = match target {
             Some(i) => {
@@ -656,7 +709,7 @@ impl Editor {
             None => self.tool == Tool::Blur,
         };
         if is_blur {
-            theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, self.backdrop, |ui| {
+            theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, &bds, |ui| {
                 ui.add_sized(vec2(118.0, 32.0), egui::Label::new(RichText::new(label).size(12.0).color(pal.hint)).truncate());
                 theme::divider(ui, pal);
                 ui.label(RichText::new(t("Drag over anything you want to hide · ⇧ for a square")).size(12.0).color(pal.text));
@@ -673,7 +726,7 @@ impl Editor {
         let mut slider_active = false;
         let mut slider_started = false;
 
-        theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, self.backdrop, |ui| {
+        theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, &bds, |ui| {
             ui.add_sized(vec2(118.0, 32.0), egui::Label::new(RichText::new(label).size(12.0).color(pal.hint)).truncate());
             theme::divider(ui, pal);
             // colours
@@ -685,10 +738,13 @@ impl Editor {
                 let rad = if resp.hovered() { 9.5 } else { 8.5 };
                 let pnt = ui.painter();
                 if cur {
-                    pnt.circle_stroke(r.center(), 11.0, Stroke::new(2.0_f32, pal.accent));
+                    pnt.circle_filled(r.center(), 11.5, theme::mix(pal.accent, pal.accent2, 0.35));
+                    pnt.circle_filled(r.center(), 9.8, if pal.dark { Color32::from_rgb(0x22, 0x1c, 0x3c) } else { Color32::WHITE });
                 }
                 pnt.circle_filled(r.center(), rad, col);
-                pnt.circle_stroke(r.center(), rad, Stroke::new(1.0_f32, pal.border));
+                // a little light on top of each swatch, like a glass bead
+                pnt.circle_filled(r.center() - vec2(0.0, rad * 0.35), rad * 0.45, Color32::from_white_alpha(38));
+                pnt.circle_stroke(r.center(), rad, Stroke::new(1.0_f32, Color32::from_black_alpha(if pal.dark { 60 } else { 28 })));
                 if resp.clicked() {
                     new_color = col;
                 }
@@ -708,7 +764,7 @@ impl Editor {
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| {
                     let mut c = new_color;
-                    if egui::color_picker::color_picker_color32(ui, &mut c, egui::color_picker::Alpha::Opaque) {
+                    if crate::colour_picker::show(ui, &mut c, pal) {
                         new_color = c;
                     }
                 });
@@ -824,32 +880,6 @@ impl Editor {
         }
     }
 
-    fn zoom_panel(&mut self, ctx: &Context, pal: &Pal, at: Pos2) -> Rect {
-        let ppp = ctx.pixels_per_point();
-        theme::floating(ctx, "zoom_panel", Align2::RIGHT_TOP, at, pal, self.backdrop, |ui| {
-            ui.set_min_height(32.0);
-            let (w, h) = self.size();
-            ui.label(RichText::new(format!("{w} × {h}")).size(12.0).color(pal.hint));
-            theme::divider(ui, pal);
-            if ui.small_button("−").on_hover_text(t("Zoom out  ⌘−")).clicked() {
-                self.zoom = Some((self.last_scale / 1.25).max(0.05));
-            }
-            let pct = (self.last_scale * ppp * 100.0).round();
-            ui.label(RichText::new(format!("{pct}%")).size(12.0));
-            if ui.small_button("+").on_hover_text(t("Zoom in  ⌘+")).clicked() {
-                self.zoom = Some(self.last_scale * 1.25);
-            }
-            if ui.small_button(t("Fit")).on_hover_text(t("Fit to window  ⌘0")).clicked() {
-                self.zoom = None;
-            }
-            if ui.small_button("1:1").on_hover_text(t("Original size")).clicked() {
-                self.zoom = Some(1.0 / ppp);
-            }
-        })
-        .response
-        .rect
-    }
-
     /// In-place typing: a borderless text field drawn exactly over the text.
     fn text_editor(&mut self, ctx: &Context, font: &AnnotFont, pal: &Pal) {
         let Some(i) = self.editing else { return };
@@ -907,27 +937,32 @@ impl Editor {
         let (iw, ih) = self.size();
         let (iw, ih) = (iw as f32, ih as f32);
         let full_area = ui.max_rect();
-        // blurred copy of the picture behind everything
+        // the aurora, tinted by a faded, blurred copy of the picture
+        self.backdrop.clear();
+        self.backdrop.push(theme::background(ui.painter(), full_area, pal, true));
         if let Some(bt) = &self.backdrop_tex {
-            let bd = Backdrop::cover(bt.id(), full_area, vec2(iw, ih));
+            let bd = Backdrop::cover(bt.id(), full_area, vec2(iw, ih)).faded(if pal.dark { 0.28 } else { 0.35 });
             bd.paint(ui.painter());
-            ui.painter().rect_filled(full_area, 0.0, pal.canvas_tint);
-            self.backdrop = Some(bd);
+            self.backdrop.push(bd);
         }
         let avail = ui.available_size();
         let ppp = ctx.pixels_per_point();
         // leave room for the floating panels above and below
         // with the zoom bar on a second row the picture moves down under it
-        let below = if self.zoom_below { BAR_ROW } else { 0.0 };
+        let below = if self.actions_below { BAR_ROW } else { 0.0 } + theme::TITLEBAR;
         let fit = ((avail.x - 60.0) / iw).min((avail.y - 160.0 - below) / ih).min(1.0 / ppp).max(0.02);
+        self.pinch_zoom(ui, full_area, avail, below, fit);
         let scale = self.zoom.unwrap_or(fit);
         self.last_scale = scale;
         let size = vec2(iw * scale, ih * scale);
 
-        egui::ScrollArea::both()
+        let mut area = egui::ScrollArea::both()
             .scroll_source(egui::scroll_area::ScrollSource::MOUSE_WHEEL | egui::scroll_area::ScrollSource::SCROLL_BAR)
-            .auto_shrink(false)
-            .show(ui, |ui| {
+            .auto_shrink(false);
+        if let Some(off) = self.pending_scroll.take() {
+            area = area.scroll_offset(off);
+        }
+        area.show(ui, |ui| {
                 let total = vec2((size.x + 60.0).max(ui.available_width()), (size.y + 150.0).max(ui.available_height()));
                 let (rect, resp) = ui.allocate_exact_size(total, Sense::click_and_drag());
                 let img_rect = Rect::from_center_size(rect.center() + vec2(0.0, -4.0 + below / 2.0), size);
@@ -1012,7 +1047,7 @@ impl Editor {
                                         if ui.button(t("Cancel")).clicked() {
                                             cancel = true;
                                         }
-                                        if ui.add(egui::Button::new(RichText::new(t("Crop")).color(Color32::WHITE)).fill(pal.accent)).clicked() {
+                                        if theme::gradient_button(ui, t("Crop"), vec2(0.0, 24.0)).clicked() {
                                             apply = true;
                                         }
                                     });
@@ -1029,6 +1064,37 @@ impl Editor {
 
                 self.handle_pointer(&ctx, &resp, s, font, &to_img, full, scale);
             });
+    }
+
+    /// Pinching the trackpad, or ⌘ + scroll wheel, zooms around the pointer.
+    fn pinch_zoom(&mut self, ui: &Ui, view: Rect, view_size: egui::Vec2, below: f32, fit: f32) {
+        let ctx = ui.ctx();
+        let (delta, pointer) = ui.input(|i| (i.zoom_delta(), i.pointer.hover_pos()));
+        if (delta - 1.0).abs() < 1e-4 {
+            return;
+        }
+        // only over the canvas itself, not over the floating bars
+        let Some(p) = pointer.filter(|p| view.contains(*p)) else { return };
+        if ctx.layer_id_at(p).is_some_and(|l| l.order != egui::Order::Background) {
+            return;
+        }
+        let old = self.zoom.unwrap_or(fit);
+        let new = (old * delta).clamp(ZOOM_MIN, ZOOM_MAX);
+        if new == old {
+            return;
+        }
+        self.zoom = Some(new);
+        // keep the picture point under the pointer where it is
+        let (iw, ih) = self.size();
+        let Some(img) = self.img_rect else { return };
+        let f = (p - img.min) / img.size();
+        let size = vec2(iw as f32, ih as f32) * new;
+        let total = vec2((size.x + 60.0).max(view_size.x), (size.y + 150.0).max(view_size.y));
+        let img_min = total / 2.0 + vec2(0.0, -4.0 + below / 2.0) - size / 2.0;
+        let off = img_min + f * size - (p - view.min);
+        let max = (total - view_size).max(egui::Vec2::ZERO);
+        self.pending_scroll = Some(off.clamp(egui::Vec2::ZERO, max));
+        ctx.request_repaint();
     }
 
     /// The selection frame around an item, in picture pixels (4 screen
