@@ -2542,7 +2542,7 @@ dependencies = [
 
 [[package]]
 name = "quicksnap"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ab_glyph",
  "arboard",
@@ -2554,6 +2554,10 @@ dependencies = [
  "global-hotkey",
  "image",
  "libc",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "raw-window-handle",
  "rfd",
  "serde",
  "serde_json",

@@ -17,7 +17,7 @@ use crate::overlay::Overlay;
 use crate::settings::{AfterShot, Settings, APP_NAME};
 use crate::settings_ui::{self, SettingsUi};
 use crate::shapes::{AnnotFont, Kind, Shape, TextStyle};
-use crate::theme::{self, Backdrop};
+use crate::theme;
 
 enum Msg {
     Captured(CaptureResult),
@@ -94,7 +94,6 @@ pub struct App {
     /// The language the menu-bar menu was built in.
     tray_lang: Option<Lang>,
     logo: Option<egui::TextureHandle>,
-    blobs: Option<(bool, egui::TextureHandle)>,
 }
 
 fn data_dir() -> Option<PathBuf> {
@@ -210,6 +209,13 @@ impl App {
         let font = AnnotFont::load(settings.main_font.as_deref());
         install_fonts(&cc.egui_ctx, &font);
         theme::setup_styles(&cc.egui_ctx);
+        // see-through window with the desktop blurred behind it (the window
+        // was created transparent for this in main.rs); screenshots for the
+        // README stay opaque
+        #[cfg(target_os = "macos")]
+        if screenshot.is_none() {
+            theme::set_vibrant(theme::apply_vibrancy(cc));
+        }
         let (tx, rx) = channel();
         let saved_json = serde_json::to_string(&settings).unwrap_or_default();
         let latest = if persist {
@@ -247,7 +253,6 @@ impl App {
             applied_theme: None,
             tray_lang: None,
             logo: None,
-            blobs: None,
         };
         if let Ok(l) = std::env::var("QUICKSNAP_LANG") {
             app.settings.language = match l.as_str() {
@@ -723,26 +728,17 @@ impl App {
             .clone()
     }
 
-    fn blob_texture(&mut self, ctx: &Context, dark: bool) -> egui::TextureHandle {
-        if self.blobs.as_ref().map(|(d, _)| *d != dark).unwrap_or(true) {
-            let t = ctx.load_texture("home-blobs", theme::blob_backdrop(dark), egui::TextureOptions::LINEAR);
-            self.blobs = Some((dark, t));
-        }
-        self.blobs.as_ref().unwrap().1.clone()
-    }
-
     fn home(&mut self, ctx: &Context) {
         let pal = theme::pal(ctx);
         let logo = self.logo(ctx);
-        let blobs = self.blob_texture(ctx, pal.dark);
         let mut chosen: Option<Command> = None;
-        egui::CentralPanel::default().frame(Frame::new().fill(pal.bg)).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(Frame::new()).show(ctx, |ui| {
             let full = ui.max_rect();
-            let bd = Backdrop::cover(blobs.id(), full, vec2(160.0, 100.0));
-            bd.paint(ui.painter());
+            theme::background(ui.painter(), full, &pal, true);
             ui.add_space((full.height() * 0.09).max(16.0));
             ui.vertical_centered(|ui| {
                 let (r, _) = ui.allocate_exact_size(vec2(96.0, 96.0), Sense::hover());
+                theme::glow(ui.painter(), r.shrink(10.0), 40, &pal, 1.6);
                 theme::shadow(ui.painter(), r.shrink(6.0), 44, &pal);
                 ui.painter().image(logo.id(), r, Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), Color32::WHITE);
                 ui.add_space(10.0);
@@ -777,29 +773,31 @@ impl App {
                 );
                 let resp = ui.interact(r, ui.id().with(("tile", i)), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                 let hov = theme::hover_amount(ctx, resp.id, resp.hovered());
-                theme::glass(ui.painter(), r, 18, &pal, Some(bd));
+                theme::hover_glow(ui.painter(), r, 20, &pal, hov);
+                theme::glass(ui.painter(), r, 20, &pal, &[]);
                 let p = ui.painter();
                 // under the pointer the tile lightens behind a see-through
                 // veil, inside its hairline border
-                p.rect_filled(r.shrink(1.0), 17.0, theme::hover_veil(&pal, hov));
+                p.rect_filled(r.shrink(1.0), 19.0, theme::hover_veil(&pal, hov));
                 // one-ink icons on a frosted white chip; the chip lights up in
                 // the accent colour under the pointer (red while recording)
                 let recording = *cmd == Command::RecordVideo && self.recorder.is_some();
                 // without a shortcut the icon and name sit a little lower, centred
                 let dy = if key.is_empty() { 6.0 } else { 0.0 };
                 let chip = Rect::from_center_size(egui::pos2(r.center().x, r.top() + 32.0 + dy), vec2(44.0, 44.0));
-                let (fill, border, ic) = if recording {
-                    (Color32::from_rgb(0xff, 0x3b, 0x30), Color32::TRANSPARENT, Color32::WHITE)
+                // at rest a soft wash of the accent gradient with an accent
+                // icon; under the pointer the turquoise gradient, white icon
+                if recording {
+                    p.rect_filled(chip, 13.0, Color32::from_rgb(0xff, 0x3b, 0x30));
                 } else {
-                    let rest = if pal.dark {
-                        (Color32::from_white_alpha(26), Color32::from_white_alpha(40), Color32::WHITE)
-                    } else {
-                        (Color32::from_white_alpha(210), pal.border, pal.text)
-                    };
-                    (theme::mix(rest.0, pal.accent, hov), theme::mix(rest.1, Color32::TRANSPARENT, hov), theme::mix(rest.2, Color32::WHITE, hov))
-                };
-                p.rect_filled(chip, 12.0, fill);
-                p.rect_stroke(chip, 12.0, Stroke::new(1.0_f32, border), egui::StrokeKind::Inside);
+                    let wash = if pal.dark { 0.22 } else { 0.16 };
+                    theme::hover_glow(p, chip, 13, &pal, hov);
+                    theme::accent_fill(p, chip, 13.0, &pal, wash * (1.0 - hov));
+                    theme::hover_fill(p, chip, 13.0, &pal, hov);
+                    p.rect_stroke(chip, 13.0, Stroke::new(1.0_f32, Color32::from_white_alpha(if pal.dark { 30 } else { 120 })), egui::StrokeKind::Inside);
+                }
+                let rest_ic = if pal.dark { Color32::from_rgb(0xc9, 0xbb, 0xff) } else { pal.accent };
+                let ic = if recording { Color32::WHITE } else { theme::mix(rest_ic, Color32::WHITE, hov) };
                 icons::paint(p, chip.shrink(9.0), *icon, ic);
                 // long translations shrink a little to fit the tile
                 let lw = ui.fonts(|f| f.layout_no_wrap(label.to_string(), egui::FontId::proportional(14.0), pal.text).size().x);
@@ -823,9 +821,10 @@ impl App {
                     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
                     let hov = theme::hover_amount(ctx, resp.id, resp.hovered());
                     let p = ui.painter();
-                    p.rect_filled(r, 10.0, pal.card);
-                    p.rect_filled(r, 10.0, theme::hover_veil(&pal, hov));
-                    p.rect_stroke(r, 10.0, Stroke::new(1.0_f32, pal.border), egui::StrokeKind::Inside);
+                    theme::hover_glow(p, r, 11, &pal, hov);
+                    theme::glass(p, r, 11, &pal, &[]);
+                    p.rect_filled(r.shrink(1.0), 10.0, theme::hover_veil(&pal, hov));
+                    theme::hover_fill(p, r, 11.0, &pal, 0.18 * hov);
                     p.text(r.center(), Align2::CENTER_CENTER, label, egui::FontId::proportional(14.0), pal.text);
                     if resp.clicked() {
                         chosen = Some(cmd);
@@ -837,7 +836,9 @@ impl App {
                 ui.label(RichText::new(t("The same commands are in the menu-bar icon.")).size(12.0).color(pal.hint));
             });
             // language picker in the top-right corner
-            let picker = Rect::from_min_size(egui::pos2(full.right() - 136.0, full.top() + 14.0), vec2(122.0, 28.0));
+            // as far from the right edge as from the top one
+            let margin = theme::TITLEBAR + 8.0;
+            let picker = Rect::from_min_size(egui::pos2(full.right() - margin - 122.0, full.top() + margin), vec2(122.0, 28.0));
             ui.scope_builder(egui::UiBuilder::new().max_rect(picker).layout(egui::Layout::right_to_left(egui::Align::Center)), |ui| {
                 i18n::lang_picker(ui, &mut self.settings.language, false);
             });
@@ -857,7 +858,7 @@ impl App {
         let pal = theme::pal(ctx);
         let mut stop = false;
         let avail = ctx.available_rect();
-        theme::floating(ctx, "status_pill", Align2::CENTER_TOP, egui::pos2(avail.center().x, avail.top() + 64.0), &pal, None, |ui| {
+        theme::floating(ctx, "status_pill", Align2::CENTER_TOP, egui::pos2(avail.center().x, avail.top() + 64.0), &pal, &[], |ui| {
             if let Some(secs) = recording {
                 let (r, _) = ui.allocate_exact_size(vec2(14.0, 20.0), Sense::hover());
                 ui.painter().circle_filled(r.center(), 5.0, Color32::from_rgb(0xff, 0x3b, 0x30));
@@ -1053,6 +1054,14 @@ impl App {
 }
 
 impl eframe::App for App {
+    fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
+        if theme::vibrant() {
+            [0.0; 4]
+        } else {
+            visuals.panel_fill.to_normalized_gamma_f32()
+        }
+    }
+
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         if self.applied_theme != Some(self.settings.theme) {
             ctx.set_theme(self.settings.theme.preference());
