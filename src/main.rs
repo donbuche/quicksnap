@@ -7,6 +7,7 @@
 mod app;
 mod appicon;
 mod capture;
+mod colour_picker;
 mod editor;
 mod hotkeys;
 mod i18n;
@@ -54,7 +55,14 @@ fn main() -> eframe::Result<()> {
             // wide enough for the editor's three top bars in one row, in
             // every language
             .with_min_inner_size([1180.0, 640.0])
-            .with_icon(std::sync::Arc::new(appicon::icon_data(256))),
+            .with_icon(std::sync::Arc::new(appicon::icon_data(256)))
+            // see-through, for the frosted-glass look (see theme::apply_vibrancy)
+            .with_transparent(cfg!(target_os = "macos") && screenshot.is_none())
+            // no title bar: the app's background runs up to the top edge and
+            // only the red-yellow-green buttons float over it
+            .with_fullsize_content_view(true)
+            .with_titlebar_shown(false)
+            .with_title_shown(false),
         event_loop_builder: Some(Box::new(|_builder| {
             // Live in the menu bar only: no Dock icon, no app menu. Closing the
             // window just hides it; Quit is in the menu-bar icon's menu.

@@ -20,10 +20,11 @@ use crate::settings::{Settings, LINE_WIDTH_MAX, LINE_WIDTH_MIN};
 use crate::shapes::{self, AnnotFont, Handle, Kind, Prim, Shape, TextStyle, TEXT_SIZE_MAX, TEXT_SIZE_MIN};
 use crate::theme::{self, Backdrop, Pal};
 
-/// Palette from the original's tool-preferences panel, plus pure red which
-/// is the starting colour.
-pub const PALETTE: [u32; 10] =
-    [0xff0000, 0xe504c3, 0xe50404, 0x53e504, 0x1f63be, 0xffea00, 0xff7200, 0x898989, 0x000000, 0xffffff];
+/// Palette from the original's tool-preferences panel. Pure red is the
+/// starting colour; the original's darker red (0xe50404) is left out because
+/// next to it the two looked like the same swatch twice.
+pub const PALETTE: [u32; 9] =
+    [0xff0000, 0xe504c3, 0x53e504, 0x1f63be, 0xffea00, 0xff7200, 0x898989, 0x000000, 0xffffff];
 
 /// Crop highlighter: black at 30 % outside the crop (0x100775c28, colour
 /// constant 0x100904c20 = 0, 0, 0, 0.3).
@@ -133,7 +134,9 @@ pub struct Editor {
     backdrop_tex: Option<TextureHandle>,
     /// The picture strongly blurred, sampled by Blur items.
     blur_tex: Option<TextureHandle>,
-    backdrop: Option<Backdrop>,
+    /// What the floating panels must reproduce behind them (the aurora and
+    /// the faded, blurred picture) so the picture does not show through.
+    backdrop: Vec<Backdrop>,
     tex_dirty: bool,
     pub tool: Tool,
     drag_start: Option<Pos2>,
@@ -173,7 +176,7 @@ impl Editor {
             texture: None,
             backdrop_tex: None,
             blur_tex: None,
-            backdrop: None,
+            backdrop: Vec::new(),
             tex_dirty: true,
             tool: Tool::Arrow,
             drag_start: None,
@@ -353,14 +356,16 @@ impl Editor {
         self.shortcuts(ctx, s, font, &mut cmds);
         // the three top bars side by side need this much room; when the window
         // is narrower the zoom bar goes under the actions bar
-        let avail = ctx.available_rect();
+        // the bars stay clear of the (invisible) title bar and its buttons
+        let mut avail = ctx.available_rect();
+        avail.min.y += theme::TITLEBAR;
         let [tw, zw, aw] = self.bar_widths;
         let zoom_below = BAR_MARGIN * 2.0 + tw + zw + aw + BAR_GAP * 2.0 > avail.width();
         if zoom_below != self.zoom_below {
             self.zoom_below = zoom_below;
             ctx.request_repaint();
         }
-        egui::CentralPanel::default().frame(Frame::new().fill(pal.bg)).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(Frame::new()).show(ctx, |ui| {
             self.canvas(ui, s, font, &pal);
         });
         let tools = self.tools_panel(ctx, s, font, &pal, avail, &mut cmds);
@@ -497,10 +502,12 @@ impl Editor {
     fn tool_button(ui: &mut Ui, pal: &Pal, s: &Settings, icon: Icon, selected: bool, tip: (&str, &str, &str)) -> egui::Response {
         let (rect, resp) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::click());
         let p = ui.painter();
+        let hov = theme::hover_amount(ui.ctx(), resp.id, resp.hovered() && !selected);
         if selected {
-            p.rect_filled(rect, 9.0, pal.accent);
-        } else if resp.hovered() {
-            p.rect_filled(rect, 9.0, pal.hover);
+            theme::glow(p, rect, 9, pal, 1.0);
+            theme::accent_fill(p, rect, 9.0, pal, 1.0);
+        } else if hov > 0.0 {
+            theme::hover_fill(p, rect, 9.0, pal, if pal.dark { 0.35 } else { 0.28 } * hov);
         }
         let col = if selected { Color32::WHITE } else { pal.text };
         icons::paint(p, Rect::from_center_size(rect.center(), vec2(19.0, 19.0)), icon, col);
@@ -520,7 +527,8 @@ impl Editor {
     }
 
     fn tools_panel(&mut self, ctx: &Context, s: &mut Settings, font: &AnnotFont, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) -> Rect {
-        theme::floating(ctx, "tools_panel", Align2::LEFT_TOP, avail.left_top() + vec2(BAR_MARGIN, BAR_MARGIN), pal, self.backdrop, |ui| {
+        let bds = self.backdrop.clone();
+        theme::floating(ctx, "tools_panel", Align2::LEFT_TOP, avail.left_top() + vec2(BAR_MARGIN, BAR_MARGIN), pal, &bds, |ui| {
             if Self::tool_button(ui, pal, s, Icon::Back, false, (t("Home"), "", t("Back to the capture screen"))).clicked() {
                 cmds.push(Cmd::Home);
             }
@@ -566,7 +574,8 @@ impl Editor {
     }
 
     fn actions_panel(&mut self, ctx: &Context, s: &Settings, pal: &Pal, avail: Rect, cmds: &mut Vec<Cmd>) -> Rect {
-        theme::floating(ctx, "actions_panel", Align2::RIGHT_TOP, avail.right_top() + vec2(-BAR_MARGIN, BAR_MARGIN), pal, self.backdrop, |ui| {
+        let bds = self.backdrop.clone();
+        theme::floating(ctx, "actions_panel", Align2::RIGHT_TOP, avail.right_top() + vec2(-BAR_MARGIN, BAR_MARGIN), pal, &bds, |ui| {
             let b = |t: &str| egui::Button::new(t).min_size(vec2(0.0, 32.0)).corner_radius(9.0);
             let c = ui.add(b(t("Copy")));
             if c.clicked() {
@@ -582,11 +591,7 @@ impl Editor {
             if s.show_tooltips_editor {
                 e.on_hover_text(t("External editor  ⌘E"));
             }
-            let save = egui::Button::new(RichText::new(t("Save")).color(Color32::WHITE).strong())
-                .fill(pal.accent)
-                .min_size(vec2(64.0, 32.0))
-                .corner_radius(9.0);
-            let r = ui.add(save);
+            let r = theme::gradient_button(ui, t("Save"), vec2(64.0, 32.0));
             if r.clicked() {
                 cmds.push(Cmd::Save);
             }
@@ -601,6 +606,7 @@ impl Editor {
     /// The always-visible style bar. It edits the selected item if there is
     /// one, and sets the defaults for new items either way.
     fn style_panel(&mut self, ctx: &Context, s: &mut Settings, pal: &Pal, avail: Rect) {
+        let bds = self.backdrop.clone();
         let target = self.selected.filter(|i| *i < self.doc.shapes.len());
         let (color, width, shadow, tsize, tstyle, is_text, is_bubble, label) = match target {
             Some(i) => {
@@ -656,7 +662,7 @@ impl Editor {
             None => self.tool == Tool::Blur,
         };
         if is_blur {
-            theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, self.backdrop, |ui| {
+            theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, &bds, |ui| {
                 ui.add_sized(vec2(118.0, 32.0), egui::Label::new(RichText::new(label).size(12.0).color(pal.hint)).truncate());
                 theme::divider(ui, pal);
                 ui.label(RichText::new(t("Drag over anything you want to hide · ⇧ for a square")).size(12.0).color(pal.text));
@@ -673,7 +679,7 @@ impl Editor {
         let mut slider_active = false;
         let mut slider_started = false;
 
-        theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, self.backdrop, |ui| {
+        theme::floating(ctx, "style_panel", Align2::CENTER_BOTTOM, pos2(avail.center().x, avail.bottom() - 14.0), pal, &bds, |ui| {
             ui.add_sized(vec2(118.0, 32.0), egui::Label::new(RichText::new(label).size(12.0).color(pal.hint)).truncate());
             theme::divider(ui, pal);
             // colours
@@ -685,10 +691,13 @@ impl Editor {
                 let rad = if resp.hovered() { 9.5 } else { 8.5 };
                 let pnt = ui.painter();
                 if cur {
-                    pnt.circle_stroke(r.center(), 11.0, Stroke::new(2.0_f32, pal.accent));
+                    pnt.circle_filled(r.center(), 11.5, theme::mix(pal.accent, pal.accent2, 0.35));
+                    pnt.circle_filled(r.center(), 9.8, if pal.dark { Color32::from_rgb(0x22, 0x1c, 0x3c) } else { Color32::WHITE });
                 }
                 pnt.circle_filled(r.center(), rad, col);
-                pnt.circle_stroke(r.center(), rad, Stroke::new(1.0_f32, pal.border));
+                // a little light on top of each swatch, like a glass bead
+                pnt.circle_filled(r.center() - vec2(0.0, rad * 0.35), rad * 0.45, Color32::from_white_alpha(38));
+                pnt.circle_stroke(r.center(), rad, Stroke::new(1.0_f32, Color32::from_black_alpha(if pal.dark { 60 } else { 28 })));
                 if resp.clicked() {
                     new_color = col;
                 }
@@ -708,7 +717,7 @@ impl Editor {
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| {
                     let mut c = new_color;
-                    if egui::color_picker::color_picker_color32(ui, &mut c, egui::color_picker::Alpha::Opaque) {
+                    if crate::colour_picker::show(ui, &mut c, pal) {
                         new_color = c;
                     }
                 });
@@ -825,8 +834,9 @@ impl Editor {
     }
 
     fn zoom_panel(&mut self, ctx: &Context, pal: &Pal, at: Pos2) -> Rect {
+        let bds = self.backdrop.clone();
         let ppp = ctx.pixels_per_point();
-        theme::floating(ctx, "zoom_panel", Align2::RIGHT_TOP, at, pal, self.backdrop, |ui| {
+        theme::floating(ctx, "zoom_panel", Align2::RIGHT_TOP, at, pal, &bds, |ui| {
             ui.set_min_height(32.0);
             let (w, h) = self.size();
             ui.label(RichText::new(format!("{w} × {h}")).size(12.0).color(pal.hint));
@@ -907,18 +917,19 @@ impl Editor {
         let (iw, ih) = self.size();
         let (iw, ih) = (iw as f32, ih as f32);
         let full_area = ui.max_rect();
-        // blurred copy of the picture behind everything
+        // the aurora, tinted by a faded, blurred copy of the picture
+        self.backdrop.clear();
+        self.backdrop.push(theme::background(ui.painter(), full_area, pal, true));
         if let Some(bt) = &self.backdrop_tex {
-            let bd = Backdrop::cover(bt.id(), full_area, vec2(iw, ih));
+            let bd = Backdrop::cover(bt.id(), full_area, vec2(iw, ih)).faded(if pal.dark { 0.28 } else { 0.35 });
             bd.paint(ui.painter());
-            ui.painter().rect_filled(full_area, 0.0, pal.canvas_tint);
-            self.backdrop = Some(bd);
+            self.backdrop.push(bd);
         }
         let avail = ui.available_size();
         let ppp = ctx.pixels_per_point();
         // leave room for the floating panels above and below
         // with the zoom bar on a second row the picture moves down under it
-        let below = if self.zoom_below { BAR_ROW } else { 0.0 };
+        let below = if self.zoom_below { BAR_ROW } else { 0.0 } + theme::TITLEBAR;
         let fit = ((avail.x - 60.0) / iw).min((avail.y - 160.0 - below) / ih).min(1.0 / ppp).max(0.02);
         let scale = self.zoom.unwrap_or(fit);
         self.last_scale = scale;
@@ -1012,7 +1023,7 @@ impl Editor {
                                         if ui.button(t("Cancel")).clicked() {
                                             cancel = true;
                                         }
-                                        if ui.add(egui::Button::new(RichText::new(t("Crop")).color(Color32::WHITE)).fill(pal.accent)).clicked() {
+                                        if theme::gradient_button(ui, t("Crop"), vec2(0.0, 24.0)).clicked() {
                                             apply = true;
                                         }
                                     });

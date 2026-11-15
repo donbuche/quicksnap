@@ -23,6 +23,12 @@ libc = "0.2"
 [target.'cfg(target_os = "macos")'.dependencies]
 # Same winit eframe uses; needed to run as a menu-bar-only app (no Dock icon).
 winit = "0.30"
+# Real "frosted glass": the desktop seen blurred through the main window
+# (an NSVisualEffectView placed behind the window's content view).
+raw-window-handle = "0.6"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSVisualEffectView", "NSGraphics"] }
 
 [profile.dev]
 opt-level = 1
