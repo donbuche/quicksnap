@@ -1,0 +1,140 @@
+# Publishes a GitHub release for every new version that reaches main.
+#
+# With git-flow every commit on main is a release, so this runs on each push
+# to main. It reads the version from Cargo.toml and, if there is no release
+# for it yet, builds QuickSnap.app and the DMG on an Apple Silicon runner and
+# publishes release vX.Y.Z with:
+#   QuickSnap-X.Y.Z.dmg   versioned download
+#   QuickSnap.dmg         same file under a fixed name, so
+#                         /releases/latest/download/QuickSnap.dmg always works
+#   SHA256SUMS.txt        checksums
+# The release notes are the version's section of CHANGELOG.md.
+#
+# A push to main whose version already has a release does nothing, so pushing
+# main again without a version bump never creates duplicates.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read the version from Cargo.toml
+        id: version
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if [ -z "$version" ]; then
+            echo "::error::No version found in Cargo.toml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Version $version"
+
+      - name: Skip if this version is already released
+        id: check
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::notice::Release ${{ steps.version.outputs.tag }} already exists; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # `git push origin main develop --tags` sends the tag right after main,
+      # so give it a moment to arrive before deciding whether to create it.
+      - name: Wait for the version tag
+        if: steps.check.outputs.skip == 'false'
+        id: tag
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          for i in $(seq 1 12); do
+            git fetch --tags --force --quiet origin
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              break
+            fi
+            echo "Waiting for tag $tag ($i/12)…"
+            sleep 10
+          done
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            tagged="$(git rev-list -n 1 "$tag")"
+            if [ "$tagged" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $tag points to $tagged, not to this commit ($GITHUB_SHA). Bump the version in Cargo.toml for a new release."
+              exit 1
+            fi
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Tag $tag was not pushed; the release will create it on this commit."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Rust
+        if: steps.check.outputs.skip == 'false'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache the Rust build
+        if: steps.check.outputs.skip == 'false'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        if: steps.check.outputs.skip == 'false'
+        run: cargo test --release
+
+      - name: Build QuickSnap.app and the DMG
+        if: steps.check.outputs.skip == 'false'
+        run: ./scripts/package-macos.sh
+
+      - name: Prepare the release files and notes
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          mkdir -p release
+          cp "dist/QuickSnap-$version.dmg" release/
+          cp "dist/QuickSnap-$version.dmg" release/QuickSnap.dmg
+          (cd release && shasum -a 256 "QuickSnap-$version.dmg" QuickSnap.dmg > SHA256SUMS.txt)
+
+          awk -v v="$version" 'index($0, "## [" v "]") == 1 { f = 1; next } /^## \[/ { if (f) exit } f' CHANGELOG.md \
+            | sed '/./,$!d' > release/notes.md
+          if [ ! -s release/notes.md ]; then
+            echo "::warning::CHANGELOG.md has no section for $version."
+            echo "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)." > release/notes.md
+          fi
+          cat .github/release-footer.md >> release/notes.md
+          cat release/notes.md
+
+      - name: Publish the release
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          tag="${{ steps.version.outputs.tag }}"
+          if [ "${{ steps.tag.outputs.exists }}" = "true" ]; then
+            target=(--verify-tag)
+          else
+            target=(--target "$GITHUB_SHA")
+          fi
+          gh release create "$tag" \
+            "release/QuickSnap-$version.dmg" \
+            release/QuickSnap.dmg \
+            release/SHA256SUMS.txt \
+            "${target[@]}" \
+            --title "QuickSnap $version" \
+            --notes-file release/notes.md \
+            --latest
