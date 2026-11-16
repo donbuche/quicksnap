@@ -489,6 +489,30 @@ pre .c { color: var(--hint); }
 .site-footer h2 { font-size: 15px; letter-spacing: 0; margin: 18px 0 8px; color: var(--text); }
 .site-footer ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
 
+/* ---------- consent banner ---------- */
+.consent {
+  position: fixed; z-index: 60; left: 50%; bottom: 16px; transform: translateX(-50%);
+  width: min(760px, 100% - 32px); padding: 18px 20px; border-radius: 18px;
+  background: var(--banner-bg); border-color: var(--line-strong); box-shadow: var(--shadow);
+  display: grid; grid-template-columns: 1fr auto; gap: 6px 18px; align-items: center;
+}
+.consent[hidden] { display: none; }
+.consent .consent-title { font-size: 16px; color: var(--text); grid-column: 1; }
+.consent p { margin: 0; color: var(--hint); font-size: 15px; grid-column: 1; }
+.consent .actions { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 8px; }
+.consent .btn { min-width: 112px; justify-content: center; }
+.link-btn {
+  font: inherit; color: var(--text); background: none; border: 0; padding: 0; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong);
+}
+.link-btn:hover { text-decoration-color: var(--glow); }
+@media (max-width: 720px) {
+  .consent { grid-template-columns: 1fr; }
+  .consent .actions { grid-column: 1; grid-row: auto; }
+  .consent .btn { flex: 1; }
+}
+@media print { .consent { display: none !important; } }
+
 /* ---------- reveal (only when JS runs) ---------- */
 .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.8,.2,1); }
 .js .reveal.in { opacity: 1; transform: none; }
@@ -504,7 +528,7 @@ pre .c { color: var(--hint); }
 }
 
 @media (forced-colors: active) {
-  .glass, .btn, .lang-menu, .suggest, kbd, .tile, .langs a, .meta li { border: 1px solid CanvasText; }
+  .glass, .btn, .lang-menu, .suggest, .consent, kbd, .tile, .langs a, .meta li { border: 1px solid CanvasText; }
   .grad, .eyebrow { background: none; color: CanvasText; -webkit-background-clip: border-box; background-clip: border-box; }
   .aurora, .selection, .floating-kbd, .floating-note, .hero-icon::before { display: none; }
   .btn-primary { background: ButtonFace; color: ButtonText; }
@@ -551,10 +575,70 @@ pre .c { color: var(--hint); }
     d.setAttribute('data-theme', t);
     if (m === 'paused') d.classList.add('paused');
   })();
+
+  // Analytics: Consent Mode v2, everything denied by default. Google Analytics
+  // (gtag.js) is only loaded after the visitor accepts, and only on the live site.
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied',
+    analytics_storage: 'denied', functionality_storage: 'granted', security_storage: 'granted'
+  });
+  window.qsAnalytics = (function () {
+    var GA = 'G-XSWM6BDFHG', loaded = false;
+    var live = location.hostname === 'donbuche.github.io';
+    function consent() { try { return localStorage.getItem('qs-consent'); } catch (e) { return null; } }
+    function load() {
+      if (loaded || !live) return;
+      loaded = true;
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA;
+      document.head.appendChild(s);
+      gtag('js', new Date());
+      gtag('config', GA, {
+        allow_google_signals: false,
+        allow_ad_personalization_signals: false,
+        page_language: 'it'
+      });
+    }
+    function clearCookies() {
+      document.cookie.split(';').forEach(function (c) {
+        var name = c.split('=')[0].trim();
+        if (!/^_ga/.test(name)) return;
+        var host = location.hostname;
+        ['', host, '.' + host].forEach(function (dom) {
+          document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/' + (dom ? '; domain=' + dom : '');
+        });
+      });
+    }
+    function set(value) {
+      try { localStorage.setItem('qs-consent', value); } catch (e) {}
+      gtag('consent', 'update', { analytics_storage: value === 'granted' ? 'granted' : 'denied' });
+      if (value === 'granted') load(); else clearCookies();
+    }
+    function track(name, params) {
+      if (consent() !== 'granted' || !live) return;
+      gtag('event', name, params);
+    }
+    if (consent() === 'granted') {
+      gtag('consent', 'update', { analytics_storage: 'granted' });
+      load();
+    }
+    return { consent: consent, set: set, track: track };
+  })();
 </script>
 </head>
 <body>
 <a class="skip" href="#main">Vai al contenuto</a>
+<div class="consent glass" id="consent" role="region" aria-labelledby="consent-title" hidden>
+  <p id="consent-title" class="consent-title"><b>Cookie</b></p>
+  <p>Possiamo usare Google Analytics per contare visite e download? Salva dei cookie sul tuo dispositivo. Puoi cambiare idea in qualsiasi momento dal fondo della pagina.</p>
+  <div class="actions">
+    <button class="btn btn-ghost btn-sm" type="button" data-consent="denied">Rifiuta</button>
+    <button class="btn btn-ghost btn-sm" type="button" data-consent="granted">Accetta</button>
+  </div>
+</div>
 
 <div class="aurora" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
 
@@ -622,21 +706,21 @@ pre .c { color: var(--hint); }
         <svg class="chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg>
       </button>
       <ul class="lang-menu" id="lang-menu" hidden aria-label="Scegli una lingua">
-        <li><a href="../" hreflang="en" lang="en" data-lang="en"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gb"/></svg>English</a></li>
-        <li><a href="../es/" hreflang="es" lang="es" data-lang="es"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-es"/></svg>Español</a></li>
-        <li><a href="../ca/" hreflang="ca" lang="ca" data-lang="ca"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-ca"/></svg>Català</a></li>
-        <li><a href="../gl/" hreflang="gl" lang="gl" data-lang="gl"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gl"/></svg>Galego</a></li>
-        <li><a href="../eu/" hreflang="eu" lang="eu" data-lang="eu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-eu"/></svg>Euskara</a></li>
-        <li><a href="../fr/" hreflang="fr" lang="fr" data-lang="fr"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-fr"/></svg>Français</a></li>
-        <li><a href="../de/" hreflang="de" lang="de" data-lang="de"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-de"/></svg>Deutsch</a></li>
-        <li><a href="../it/" hreflang="it" lang="it" data-lang="it" aria-current="page"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-it"/></svg>Italiano</a></li>
-        <li><a href="../pt/" hreflang="pt-PT" lang="pt-PT" data-lang="pt"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pt"/></svg>Português</a></li>
-        <li><a href="../pt-br/" hreflang="pt-BR" lang="pt-BR" data-lang="pt-br"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-br"/></svg>Português (Brasil)</a></li>
-        <li><a href="../nl/" hreflang="nl" lang="nl" data-lang="nl"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-nl"/></svg>Nederlands</a></li>
-        <li><a href="../pl/" hreflang="pl" lang="pl" data-lang="pl"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pl"/></svg>Polski</a></li>
-        <li><a href="../ja/" hreflang="ja" lang="ja" data-lang="ja"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-jp"/></svg>日本語</a></li>
-        <li><a href="../zh/" hreflang="zh-Hans" lang="zh-Hans" data-lang="zh"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-cn"/></svg>简体中文</a></li>
-        <li><a href="../ko/" hreflang="ko" lang="ko" data-lang="ko"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-kr"/></svg>한국어</a></li>
+        <li><a href="../" hreflang="en" lang="en" data-lang="en" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gb"/></svg>English</a></li>
+        <li><a href="../es/" hreflang="es" lang="es" data-lang="es" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-es"/></svg>Español</a></li>
+        <li><a href="../ca/" hreflang="ca" lang="ca" data-lang="ca" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-ca"/></svg>Català</a></li>
+        <li><a href="../gl/" hreflang="gl" lang="gl" data-lang="gl" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gl"/></svg>Galego</a></li>
+        <li><a href="../eu/" hreflang="eu" lang="eu" data-lang="eu" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-eu"/></svg>Euskara</a></li>
+        <li><a href="../fr/" hreflang="fr" lang="fr" data-lang="fr" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-fr"/></svg>Français</a></li>
+        <li><a href="../de/" hreflang="de" lang="de" data-lang="de" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-de"/></svg>Deutsch</a></li>
+        <li><a href="../it/" hreflang="it" lang="it" data-lang="it" data-via="menu" aria-current="page"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-it"/></svg>Italiano</a></li>
+        <li><a href="../pt/" hreflang="pt-PT" lang="pt-PT" data-lang="pt" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pt"/></svg>Português</a></li>
+        <li><a href="../pt-br/" hreflang="pt-BR" lang="pt-BR" data-lang="pt-br" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-br"/></svg>Português (Brasil)</a></li>
+        <li><a href="../nl/" hreflang="nl" lang="nl" data-lang="nl" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-nl"/></svg>Nederlands</a></li>
+        <li><a href="../pl/" hreflang="pl" lang="pl" data-lang="pl" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pl"/></svg>Polski</a></li>
+        <li><a href="../ja/" hreflang="ja" lang="ja" data-lang="ja" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-jp"/></svg>日本語</a></li>
+        <li><a href="../zh/" hreflang="zh-Hans" lang="zh-Hans" data-lang="zh" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-cn"/></svg>简体中文</a></li>
+        <li><a href="../ko/" hreflang="ko" lang="ko" data-lang="ko" data-via="menu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-kr"/></svg>한국어</a></li>
       </ul>
     </div>
     <button class="icon-btn" id="theme" type="button" aria-pressed="false">
@@ -644,7 +728,7 @@ pre .c { color: var(--hint); }
       <svg class="sun" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       <span class="sr-only">Aspetto scuro</span>
     </button>
-    <a class="btn btn-primary btn-sm" href="https://github.com/donbuche/quicksnap/releases/latest/download/QuickSnap.dmg"><svg aria-hidden="true" focusable="false"><use href="#i-download"/></svg><span class="label">Scarica</span><span class="sr-only"> QuickSnap</span></a>
+    <a class="btn btn-primary btn-sm" href="https://github.com/donbuche/quicksnap/releases/latest/download/QuickSnap.dmg" data-download="header"><svg aria-hidden="true" focusable="false"><use href="#i-download"/></svg><span class="label">Scarica</span><span class="sr-only"> QuickSnap</span></a>
   </div>
   <div class="suggest" id="suggest" role="region" aria-label="Suggerimento di lingua" hidden></div>
 </header>
@@ -656,7 +740,7 @@ pre .c { color: var(--hint); }
     <h1>Quick<span class="grad">Snap</span></h1>
     <p class="tagline"><strong>Fai un'istantanea, annotala, salvala o copiala.</strong> Una piccola app nativa per la barra dei menu di macOS, scritta in Rust.</p>
     <div class="cta">
-      <a class="btn btn-primary" href="https://github.com/donbuche/quicksnap/releases/latest/download/QuickSnap.dmg"><svg aria-hidden="true" focusable="false"><use href="#i-apple"/></svg>Scarica per macOS</a>
+      <a class="btn btn-primary" href="https://github.com/donbuche/quicksnap/releases/latest/download/QuickSnap.dmg" data-download="hero"><svg aria-hidden="true" focusable="false"><use href="#i-apple"/></svg>Scarica per macOS</a>
       <a class="btn btn-ghost" href="https://github.com/donbuche/quicksnap"><svg aria-hidden="true" focusable="false"><use href="#i-github"/></svg>Guarda su GitHub</a>
     </div>
     <ul class="meta" aria-label="In breve">
@@ -767,21 +851,21 @@ pre .c { color: var(--hint); }
       <p class="lead">Sceglila dalla schermata iniziale o dalle Impostazioni. Cinese, giapponese e coreano usano i font di macOS.</p>
     </div>
     <ul class="langs reveal">
-      <li><a href="../" hreflang="en" lang="en" data-lang="en"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gb"/></svg>English</a></li>
-      <li><a href="../es/" hreflang="es" lang="es" data-lang="es"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-es"/></svg>Español</a></li>
-      <li><a href="../ca/" hreflang="ca" lang="ca" data-lang="ca"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-ca"/></svg>Català</a></li>
-      <li><a href="../gl/" hreflang="gl" lang="gl" data-lang="gl"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gl"/></svg>Galego</a></li>
-      <li><a href="../eu/" hreflang="eu" lang="eu" data-lang="eu"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-eu"/></svg>Euskara</a></li>
-      <li><a href="../fr/" hreflang="fr" lang="fr" data-lang="fr"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-fr"/></svg>Français</a></li>
-      <li><a href="../de/" hreflang="de" lang="de" data-lang="de"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-de"/></svg>Deutsch</a></li>
-      <li><a href="../it/" hreflang="it" lang="it" data-lang="it" aria-current="page"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-it"/></svg>Italiano</a></li>
-      <li><a href="../pt/" hreflang="pt-PT" lang="pt-PT" data-lang="pt"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pt"/></svg>Português</a></li>
-      <li><a href="../pt-br/" hreflang="pt-BR" lang="pt-BR" data-lang="pt-br"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-br"/></svg>Português (Brasil)</a></li>
-      <li><a href="../nl/" hreflang="nl" lang="nl" data-lang="nl"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-nl"/></svg>Nederlands</a></li>
-      <li><a href="../pl/" hreflang="pl" lang="pl" data-lang="pl"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pl"/></svg>Polski</a></li>
-      <li><a href="../ja/" hreflang="ja" lang="ja" data-lang="ja"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-jp"/></svg>日本語</a></li>
-      <li><a href="../zh/" hreflang="zh-Hans" lang="zh-Hans" data-lang="zh"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-cn"/></svg>简体中文</a></li>
-      <li><a href="../ko/" hreflang="ko" lang="ko" data-lang="ko"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-kr"/></svg>한국어</a></li>
+      <li><a href="../" hreflang="en" lang="en" data-lang="en" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gb"/></svg>English</a></li>
+      <li><a href="../es/" hreflang="es" lang="es" data-lang="es" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-es"/></svg>Español</a></li>
+      <li><a href="../ca/" hreflang="ca" lang="ca" data-lang="ca" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-ca"/></svg>Català</a></li>
+      <li><a href="../gl/" hreflang="gl" lang="gl" data-lang="gl" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-gl"/></svg>Galego</a></li>
+      <li><a href="../eu/" hreflang="eu" lang="eu" data-lang="eu" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-eu"/></svg>Euskara</a></li>
+      <li><a href="../fr/" hreflang="fr" lang="fr" data-lang="fr" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-fr"/></svg>Français</a></li>
+      <li><a href="../de/" hreflang="de" lang="de" data-lang="de" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-de"/></svg>Deutsch</a></li>
+      <li><a href="../it/" hreflang="it" lang="it" data-lang="it" data-via="pills" aria-current="page"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-it"/></svg>Italiano</a></li>
+      <li><a href="../pt/" hreflang="pt-PT" lang="pt-PT" data-lang="pt" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pt"/></svg>Português</a></li>
+      <li><a href="../pt-br/" hreflang="pt-BR" lang="pt-BR" data-lang="pt-br" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-br"/></svg>Português (Brasil)</a></li>
+      <li><a href="../nl/" hreflang="nl" lang="nl" data-lang="nl" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-nl"/></svg>Nederlands</a></li>
+      <li><a href="../pl/" hreflang="pl" lang="pl" data-lang="pl" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-pl"/></svg>Polski</a></li>
+      <li><a href="../ja/" hreflang="ja" lang="ja" data-lang="ja" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-jp"/></svg>日本語</a></li>
+      <li><a href="../zh/" hreflang="zh-Hans" lang="zh-Hans" data-lang="zh" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-cn"/></svg>简体中文</a></li>
+      <li><a href="../ko/" hreflang="ko" lang="ko" data-lang="ko" data-via="pills"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-kr"/></svg>한국어</a></li>
     </ul>
   </section>
 
@@ -829,7 +913,7 @@ pre .c { color: var(--hint); }
       <h2 id="final-title">Pronta quando premi <span class="grad" aria-hidden="true">⌥⌘5</span><span class="sr-only">Opzione + Comando + 5</span></h2>
       <p class="lead" style="margin-inline:auto">Gratis, leggera e rispettosa della privacy. Provala e lascia una stella al repository se ti fa risparmiare qualche clic.</p>
       <div class="cta">
-        <a class="btn btn-primary" href="https://github.com/donbuche/quicksnap/releases/latest/download/QuickSnap.dmg"><svg aria-hidden="true" focusable="false"><use href="#i-download"/></svg>Scarica QuickSnap</a>
+        <a class="btn btn-primary" href="https://github.com/donbuche/quicksnap/releases/latest/download/QuickSnap.dmg" data-download="final"><svg aria-hidden="true" focusable="false"><use href="#i-download"/></svg>Scarica QuickSnap</a>
         <a class="btn btn-ghost" href="https://github.com/donbuche/quicksnap"><svg aria-hidden="true" focusable="false"><use href="#i-github"/></svg>Lascia una stella su GitHub</a>
       </div>
     </div>
@@ -849,26 +933,27 @@ pre .c { color: var(--hint); }
           <li><a href="https://github.com/donbuche/quicksnap/releases">Release</a></li>
           <li><a href="https://github.com/donbuche/quicksnap/blob/main/CHANGELOG.md">Registro delle modifiche</a></li>
           <li><a href="https://github.com/donbuche/quicksnap/issues">Segnala un problema</a></li>
+          <li><button class="link-btn" type="button" id="consent-open">Preferenze sui cookie</button></li>
         </ul>
       </nav>
       <nav aria-labelledby="footer-langs">
         <h2 id="footer-langs">Questa pagina in altre lingue</h2>
         <ul>
-          <li><a href="../" hreflang="en" lang="en" data-lang="en">English</a></li>
-          <li><a href="../es/" hreflang="es" lang="es" data-lang="es">Español</a></li>
-          <li><a href="../ca/" hreflang="ca" lang="ca" data-lang="ca">Català</a></li>
-          <li><a href="../gl/" hreflang="gl" lang="gl" data-lang="gl">Galego</a></li>
-          <li><a href="../eu/" hreflang="eu" lang="eu" data-lang="eu">Euskara</a></li>
-          <li><a href="../fr/" hreflang="fr" lang="fr" data-lang="fr">Français</a></li>
-          <li><a href="../de/" hreflang="de" lang="de" data-lang="de">Deutsch</a></li>
-          <li><a href="../it/" hreflang="it" lang="it" data-lang="it" aria-current="page">Italiano</a></li>
-          <li><a href="../pt/" hreflang="pt-PT" lang="pt-PT" data-lang="pt">Português</a></li>
-          <li><a href="../pt-br/" hreflang="pt-BR" lang="pt-BR" data-lang="pt-br">Português (Brasil)</a></li>
-          <li><a href="../nl/" hreflang="nl" lang="nl" data-lang="nl">Nederlands</a></li>
-          <li><a href="../pl/" hreflang="pl" lang="pl" data-lang="pl">Polski</a></li>
-          <li><a href="../ja/" hreflang="ja" lang="ja" data-lang="ja">日本語</a></li>
-          <li><a href="../zh/" hreflang="zh-Hans" lang="zh-Hans" data-lang="zh">简体中文</a></li>
-          <li><a href="../ko/" hreflang="ko" lang="ko" data-lang="ko">한국어</a></li>
+          <li><a href="../" hreflang="en" lang="en" data-lang="en" data-via="footer">English</a></li>
+          <li><a href="../es/" hreflang="es" lang="es" data-lang="es" data-via="footer">Español</a></li>
+          <li><a href="../ca/" hreflang="ca" lang="ca" data-lang="ca" data-via="footer">Català</a></li>
+          <li><a href="../gl/" hreflang="gl" lang="gl" data-lang="gl" data-via="footer">Galego</a></li>
+          <li><a href="../eu/" hreflang="eu" lang="eu" data-lang="eu" data-via="footer">Euskara</a></li>
+          <li><a href="../fr/" hreflang="fr" lang="fr" data-lang="fr" data-via="footer">Français</a></li>
+          <li><a href="../de/" hreflang="de" lang="de" data-lang="de" data-via="footer">Deutsch</a></li>
+          <li><a href="../it/" hreflang="it" lang="it" data-lang="it" data-via="footer" aria-current="page">Italiano</a></li>
+          <li><a href="../pt/" hreflang="pt-PT" lang="pt-PT" data-lang="pt" data-via="footer">Português</a></li>
+          <li><a href="../pt-br/" hreflang="pt-BR" lang="pt-BR" data-lang="pt-br" data-via="footer">Português (Brasil)</a></li>
+          <li><a href="../nl/" hreflang="nl" lang="nl" data-lang="nl" data-via="footer">Nederlands</a></li>
+          <li><a href="../pl/" hreflang="pl" lang="pl" data-lang="pl" data-via="footer">Polski</a></li>
+          <li><a href="../ja/" hreflang="ja" lang="ja" data-lang="ja" data-via="footer">日本語</a></li>
+          <li><a href="../zh/" hreflang="zh-Hans" lang="zh-Hans" data-lang="zh" data-via="footer">简体中文</a></li>
+          <li><a href="../ko/" hreflang="ko" lang="ko" data-lang="ko" data-via="footer">한국어</a></li>
         </ul>
       </nav>
     </div>
@@ -947,8 +1032,48 @@ pre .c { color: var(--hint); }
   });
   // Remember an explicit choice so the suggestion banner stays quiet
   Array.prototype.forEach.call(document.querySelectorAll('a[data-lang]'), function (a) {
-    a.addEventListener('click', function () { store('qs-lang', a.getAttribute('data-lang')); });
+    a.addEventListener('click', function () {
+      store('qs-lang', a.getAttribute('data-lang'));
+      qsAnalytics.track('language_change', { from_language: CURRENT, to_language: a.getAttribute('data-lang'), via: a.getAttribute('data-via') || 'menu' });
+    });
   });
+
+  // Analytics events (sent only after consent)
+  Array.prototype.forEach.call(document.querySelectorAll('a[data-download]'), function (a) {
+    a.addEventListener('click', function () {
+      qsAnalytics.track('file_download', {
+        file_name: 'QuickSnap.dmg', file_extension: 'dmg', link_url: a.href,
+        page_language: CURRENT, button_location: a.getAttribute('data-download'), transport_type: 'beacon'
+      });
+    });
+  });
+
+  // Consent banner: not modal, both choices equally prominent, reopened from the footer
+  var consentBox = document.getElementById('consent');
+  var consentOpen = document.getElementById('consent-open');
+  var openedFromFooter = false;
+  function fitConsent() {
+    var h = consentBox.hidden ? 0 : consentBox.offsetHeight + 32;
+    d.style.scrollPaddingBottom = h ? h + 'px' : '';
+    document.body.style.paddingBottom = h ? h + 'px' : '';
+  }
+  function showConsent(fromFooter) {
+    openedFromFooter = fromFooter;
+    consentBox.hidden = false;
+    fitConsent();
+    if (fromFooter) consentBox.querySelector('button').focus();
+  }
+  Array.prototype.forEach.call(consentBox.querySelectorAll('[data-consent]'), function (b) {
+    b.addEventListener('click', function () {
+      qsAnalytics.set(b.getAttribute('data-consent'));
+      consentBox.hidden = true;
+      fitConsent();
+      (openedFromFooter ? consentOpen : document.getElementById('main')).focus();
+    });
+  });
+  consentOpen.addEventListener('click', function () { showConsent(true); });
+  window.addEventListener('resize', fitConsent);
+  if (!qsAnalytics.consent()) showConsent(false);
 
   // Suggest the visitor's language (never redirect)
   function pick() {
@@ -972,12 +1097,16 @@ pre .c { color: var(--hint); }
     var box = document.getElementById('suggest');
     box.innerHTML =
       '<p lang="' + best.lang + '"><svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-' + best.flag + '"/></svg>' + best.text + '</p>' +
-      '<div class="actions"><a class="btn btn-primary btn-sm" data-lang="' + best.code + '" lang="' + best.lang + '" hreflang="' + best.lang + '" href="' + best.href + '">' + best.go + '</a>' +
+      '<div class="actions"><a class="btn btn-primary btn-sm" data-lang="' + best.code + '" data-via="suggestion" lang="' + best.lang + '" hreflang="' + best.lang + '" href="' + best.href + '">' + best.go + '</a>' +
       '<button class="icon-btn" type="button" lang="' + best.lang + '"><svg aria-hidden="true" focusable="false"><use href="#i-close"/></svg><span class="sr-only">' + best.dismiss + '</span></button></div>';
     box.hidden = false;
-    box.querySelector('a').addEventListener('click', function () { store('qs-lang', best.code); });
+    box.querySelector('a').addEventListener('click', function () {
+      store('qs-lang', best.code);
+      qsAnalytics.track('language_change', { from_language: CURRENT, to_language: best.code, via: 'suggestion' });
+    });
     box.querySelector('button').addEventListener('click', function () {
       store('qs-suggest-' + best.code, 'no');
+      qsAnalytics.track('language_suggestion_dismissed', { from_language: CURRENT, to_language: best.code });
       box.hidden = true;
       langBtn.focus();
     });

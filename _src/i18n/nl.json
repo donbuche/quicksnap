@@ -134,5 +134,11 @@
   "banner_label": "Taalsuggestie",
   "banner_text": "Deze pagina is ook beschikbaar in het Nederlands.",
   "banner_go": "Lees in het Nederlands",
-  "banner_dismiss": "Sluiten"
+  "banner_dismiss": "Sluiten",
+
+  "consent_label": "Cookies",
+  "consent_text": "Mogen we Google Analytics gebruiken om bezoeken en downloads te tellen? Daarbij worden cookies op je apparaat opgeslagen. Je kunt je keuze altijd wijzigen onderaan de pagina.",
+  "consent_accept": "Accepteren",
+  "consent_reject": "Weigeren",
+  "consent_settings": "Cookievoorkeuren"
 }

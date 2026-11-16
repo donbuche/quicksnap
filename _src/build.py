@@ -31,6 +31,7 @@ OUT = SRC.parent
 
 BASE = "https://donbuche.github.io/quicksnap/"
 VERSION = "0.3.1"
+GA_ID = "G-XSWM6BDFHG"  # Google Analytics 4, property "QuickSnap (GitHub Pages)"
 REPO = "https://github.com/donbuche/quicksnap"
 
 # Order of the app's language menu: English, the languages of Spain, the
@@ -251,12 +252,12 @@ def render(template, lang, texts):
     alternates.append(f'<link rel="alternate" hreflang="x-default" href="{BASE}">')
     og_alt = [f'<meta property="og:locale:alternate" content="{l["og_locale"]}">' for l in LANGS if l is not lang]
 
-    def lang_link(l, cls_flag=True, indent="        "):
+    def lang_link(l, cls_flag=True, indent="        ", via="menu"):
         cur = ' aria-current="page"' if l is lang else ""
         flag = (f'<svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-{l["flag"]}"/></svg>'
                 if cls_flag else "")
         return (f'{indent}<li><a href="{rel(lang, l)}" hreflang="{l["hreflang"]}" lang="{l["hreflang"]}" '
-                f'data-lang="{l["code"]}"{cur}>{flag}{esc(l["name"])}</a></li>')
+                f'data-lang="{l["code"]}" data-via="{via}"{cur}>{flag}{esc(l["name"])}</a></li>')
 
     banner = []
     for l in LANGS:
@@ -281,12 +282,14 @@ def render(template, lang, texts):
         "home": "./",
         "shots": f"{root}assets/shots/{lang['code']}/",
         "version": VERSION,
+        "ga": GA_ID,
+        "host": BASE.split("/")[2],
         "flag": lang["flag"],
         "lang_name": esc(lang["name"]),
         "flag_sprite": flag_sprite(),
         "lang_menu": "\n".join(lang_link(l) for l in LANGS),
-        "lang_pills": "\n".join(lang_link(l, indent="      ") for l in LANGS),
-        "footer_langs": "\n".join(lang_link(l, cls_flag=False, indent="          ") for l in LANGS),
+        "lang_pills": "\n".join(lang_link(l, indent="      ", via="pills") for l in LANGS),
+        "footer_langs": "\n".join(lang_link(l, cls_flag=False, indent="          ", via="footer") for l in LANGS),
         "langs_json": json.dumps(banner, ensure_ascii=False).replace("</", "<\\/"),
         "js_pause": json.dumps(plain(t["motion_pause"]), ensure_ascii=False),
         "js_play": json.dumps(plain(t["motion_play"]), ensure_ascii=False),

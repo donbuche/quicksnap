@@ -134,5 +134,11 @@
   "banner_label": "言語の提案",
   "banner_text": "このページは日本語でもご覧いただけます。",
   "banner_go": "日本語で読む",
-  "banner_dismiss": "閉じる"
+  "banner_dismiss": "閉じる",
+
+  "consent_label": "Cookie",
+  "consent_text": "訪問数とダウンロード数を把握するために Google アナリティクスを使用してもよろしいですか？お使いのデバイスに Cookie が保存されます。選択はページ下部からいつでも変更できます。",
+  "consent_accept": "同意する",
+  "consent_reject": "拒否する",
+  "consent_settings": "Cookie の設定"
 }

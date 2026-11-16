@@ -134,5 +134,11 @@
   "banner_label": "Sprachvorschlag",
   "banner_text": "Diese Seite gibt es auch auf Deutsch.",
   "banner_go": "Auf Deutsch lesen",
-  "banner_dismiss": "Schließen"
+  "banner_dismiss": "Schließen",
+
+  "consent_label": "Cookies",
+  "consent_text": "Dürfen wir Google Analytics verwenden, um Besuche und Downloads zu zählen? Dabei werden Cookies auf deinem Gerät gespeichert. Du kannst deine Wahl jederzeit unten auf der Seite ändern.",
+  "consent_accept": "Akzeptieren",
+  "consent_reject": "Ablehnen",
+  "consent_settings": "Cookie-Einstellungen"
 }

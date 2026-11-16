@@ -134,5 +134,11 @@
   "banner_label": "Sugerencia de idioma",
   "banner_text": "Esta página también está disponible en español.",
   "banner_go": "Leer en español",
-  "banner_dismiss": "Cerrar"
+  "banner_dismiss": "Cerrar",
+
+  "consent_label": "Cookies",
+  "consent_text": "¿Podemos usar Google Analytics para contar visitas y descargas? Guarda cookies en tu dispositivo. Puedes cambiar de opinión cuando quieras desde el pie de la página.",
+  "consent_accept": "Aceptar",
+  "consent_reject": "Rechazar",
+  "consent_settings": "Preferencias de cookies"
 }

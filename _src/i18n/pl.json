@@ -134,5 +134,11 @@
   "banner_label": "Sugestia języka",
   "banner_text": "Ta strona jest dostępna także po polsku.",
   "banner_go": "Czytaj po polsku",
-  "banner_dismiss": "Zamknij"
+  "banner_dismiss": "Zamknij",
+
+  "consent_label": "Pliki cookie",
+  "consent_text": "Czy możemy używać Google Analytics do liczenia odwiedzin i pobrań? Zapisuje on pliki cookie na Twoim urządzeniu. Zdanie możesz zmienić w każdej chwili na dole strony.",
+  "consent_accept": "Akceptuj",
+  "consent_reject": "Odrzuć",
+  "consent_settings": "Ustawienia plików cookie"
 }

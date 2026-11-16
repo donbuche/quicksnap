@@ -134,5 +134,11 @@
   "banner_label": "Suggeriment d'idioma",
   "banner_text": "Aquesta pàgina també està disponible en català.",
   "banner_go": "Llegeix-la en català",
-  "banner_dismiss": "Tanca"
+  "banner_dismiss": "Tanca",
+
+  "consent_label": "Galetes",
+  "consent_text": "Podem fer servir Google Analytics per comptar visites i baixades? Desa galetes al teu dispositiu. Pots canviar d'opinió quan vulguis des del peu de la pàgina.",
+  "consent_accept": "Accepta",
+  "consent_reject": "Rebutja",
+  "consent_settings": "Preferències de galetes"
 }

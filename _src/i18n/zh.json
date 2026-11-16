@@ -134,5 +134,11 @@
   "banner_label": "语言建议",
   "banner_text": "本页面也提供简体中文版本。",
   "banner_go": "阅读中文版",
-  "banner_dismiss": "关闭"
+  "banner_dismiss": "关闭",
+
+  "consent_label": "Cookie",
+  "consent_text": "我们能否使用 Google Analytics 统计访问量和下载量？它会在你的设备上存储 Cookie。你可以随时在页面底部更改选择。",
+  "consent_accept": "接受",
+  "consent_reject": "拒绝",
+  "consent_settings": "Cookie 设置"
 }

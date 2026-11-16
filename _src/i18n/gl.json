@@ -134,5 +134,11 @@
   "banner_label": "Suxestión de idioma",
   "banner_text": "Esta páxina tamén está dispoñible en galego.",
   "banner_go": "Ler en galego",
-  "banner_dismiss": "Pechar"
+  "banner_dismiss": "Pechar",
+
+  "consent_label": "Cookies",
+  "consent_text": "Podemos usar Google Analytics para contar visitas e descargas? Garda cookies no teu dispositivo. Podes cambiar de opinión cando queiras desde o pé da páxina.",
+  "consent_accept": "Aceptar",
+  "consent_reject": "Rexeitar",
+  "consent_settings": "Preferencias de cookies"
 }

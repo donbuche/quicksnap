@@ -134,5 +134,11 @@
   "banner_label": "Hizkuntza-iradokizuna",
   "banner_text": "Orri hau euskaraz ere badago.",
   "banner_go": "Irakurri euskaraz",
-  "banner_dismiss": "Itxi"
+  "banner_dismiss": "Itxi",
+
+  "consent_label": "Cookieak",
+  "consent_text": "Google Analytics erabil dezakegu bisitak eta deskargak zenbatzeko? Cookieak gordetzen ditu zure gailuan. Nahi duzunean alda dezakezu erabakia orriaren oinetik.",
+  "consent_accept": "Onartu",
+  "consent_reject": "Ukatu",
+  "consent_settings": "Cookieen hobespenak"
 }
