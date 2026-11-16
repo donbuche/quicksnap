@@ -310,6 +310,9 @@ impl App {
         if let Ok(t) = std::env::var("QUICKSNAP_THEME") {
             app.settings.theme = if t == "dark" { theme::ThemeChoice::Dark } else { theme::ThemeChoice::Light };
         }
+        if app.screenshot.is_some() {
+            cc.egui_ctx.set_zoom_factor(crate::screenshot_zoom());
+        }
         if app.screenshot.is_some() && app.view.is_none() {
             let mut ed = Editor::new(sample_picture(), "Sample");
             ed.add_shapes(sample_shapes());
