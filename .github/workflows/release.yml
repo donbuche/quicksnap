@@ -33,7 +33,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -112,7 +112,7 @@ jobs:
           (cd release && shasum -a 256 "QuickSnap-$version.dmg" QuickSnap.dmg > SHA256SUMS.txt)
 
           awk -v v="$version" 'index($0, "## [" v "]") == 1 { f = 1; next } /^## \[/ { if (f) exit } f' CHANGELOG.md \
-            | sed '/./,$!d' > release/notes.md
+            | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > release/notes.md
           if [ ! -s release/notes.md ]; then
             echo "::warning::CHANGELOG.md has no section for $version."
             echo "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)." > release/notes.md
