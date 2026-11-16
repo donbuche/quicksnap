@@ -6,7 +6,7 @@
 
 **A lightweight screenshot and annotation tool for macOS, written in Rust.**
 
-![Version](https://img.shields.io/badge/version-0.3.1-blue)
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success?logo=apple)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
@@ -60,7 +60,9 @@ then save or copy it, with no accounts, no uploads and no telemetry.
   Korean, picked from the home screen or Preferences
 - **Launch at login:** optional, from Preferences → General
 - **Glass look:** see-through window with the desktop blurred behind it, colour-gradient
-  backdrop and no title bar (only the window buttons)
+  backdrop and no title bar (only the window buttons); nearly flat, with only faint shadows
+- **Click sound:** a soft click on buttons and other controls (can be turned off in
+  Preferences → General)
 - **Small and native:** a single Rust binary, ~5 MB DMG
 
 ## Screenshots
@@ -150,7 +152,8 @@ needed), which is enough for the Mac it was built on.
 With `--screenshot`, the environment variables `QUICKSNAP_VIEW` (`home`, `prefs-general`,
 `prefs-advanced`…), `QUICKSNAP_THEME` (`light`/`dark`), `QUICKSNAP_LANG` (`en`, `es`, `ca`, `gl`, `eu`, `fr`, `de`, `it`, `pt`, `pt-br`, `nl`, `pl`,
 `ja`, `zh`, `ko`)
-and `QUICKSNAP_WINDOW` (e.g. `1000x620`) choose what is shown.
+and `QUICKSNAP_WINDOW` (e.g. `1000x620`) choose what is shown; `QUICKSNAP_ZOOM=2`
+renders at twice the resolution (Retina-sharp shots on a 1x display).
 
 ## Project layout
 
@@ -169,11 +172,13 @@ src/
 ├── theme.rs         light/dark palettes, glass panels, gradients, vibrancy
 ├── colour_picker.rs custom-colour popup (hex code, colour map, hue bar)
 ├── icons.rs         vector toolbar icons
+├── sound.rs         the click sound on buttons
 └── appicon.rs       app icon, drawn in code
 scripts/
 ├── package-macos.sh build QuickSnap.app and the .dmg
 ├── install-local.sh build, install into /Applications and relaunch
 └── setup-signing.sh one-time local signing certificate (keeps permissions across rebuilds)
+assets/sounds/       the click sound and its credits
 docs/                README images
 ```
 
@@ -233,8 +238,13 @@ Open-source libraries:
   [tray-icon](https://github.com/tauri-apps/tray-icon) from the Tauri project
 - [arboard](https://github.com/1Password/arboard) for clipboard access
 - [rfd](https://github.com/PolyMeilex/rfd) for native file dialogs
+- [rodio](https://github.com/RustAudio/rodio) to play the click sound
 - [serde](https://serde.rs), [chrono](https://github.com/chronotope/chrono),
   [dirs](https://github.com/dirs-dev/dirs-rs)
+
+Click sound: "audio-volume-change" from the
+[freedesktop.org sound theme](https://www.freedesktop.org/wiki/Specifications/sound-theme-spec/)
+by Lucas McCallister, CC-BY-SA (see [assets/sounds/CREDITS.txt](assets/sounds/CREDITS.txt)).
 
 ## License
 

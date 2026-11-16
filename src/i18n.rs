@@ -236,7 +236,6 @@ const TABLE: &[(&str, [&str; 14])] = &[
     ("Image copied to clipboard", ["Imagen copiada al portapapeles", "Imatge copiada al porta-retalls", "Image copiée dans le presse-papiers", "Bild in die Zwischenablage kopiert", "Imagem copiada para a área de transferência", "Immagine copiata negli appunti", "Imaxe copiada no portapapeis", "Irudia arbelean kopiatu da", "Imagem copiada para a Área de Transferência", "Afbeelding gekopieerd naar klembord", "Skopiowano obraz do schowka", "イメージをクリップボードにコピーしました", "图像已拷贝到剪贴板", "이미지를 클립보드에 복사함"]),
     ("Take a screenshot, mark it up, save or copy it.", ["Haz una captura, anótala y guárdala o cópiala.", "Fes una captura, anota-la i desa-la o copia-la.", "Faites une capture, annotez-la, enregistrez-la ou copiez-la.", "Bildschirmfoto aufnehmen, beschriften, speichern oder kopieren.", "Faça uma captura, anote-a, guarde-a ou copie-a.", "Fai un'istantanea, annotala, salvala o copiala.", "Fai unha captura, anótaa e gárdaa ou cópiaa.", "Atera pantaila-argazki bat, egin oharrak eta gorde edo kopiatu.", "Faça uma captura de tela, anote-a e salve ou copie.", "Maak een schermafbeelding, annoteer, bewaar of kopieer hem.", "Zrób zrzut ekranu, dodaj adnotacje, zachowaj lub skopiuj.", "スクリーンショットを撮って、注釈を付け、保存またはコピーできます。", "截屏、标注，然后存储或拷贝。", "스크린샷을 찍고, 주석을 달고, 저장하거나 복사하십시오."]),
     ("Not set", ["Sin asignar", "Sense assignar", "Non défini", "Nicht festgelegt", "Não definido", "Non impostato", "Sen asignar", "Esleitu gabe", "Não definido", "Niet ingesteld", "Nie ustawiono", "未設定", "未设置", "설정 안 됨"]),
-    ("The same commands are in the menu-bar icon.", ["Los mismos comandos están en el icono de la barra de menús.", "Les mateixes ordres són a la icona de la barra de menús.", "Les mêmes commandes se trouvent dans l'icône de la barre des menus.", "Dieselben Befehle findest du im Symbol in der Menüleiste.", "Os mesmos comandos estão no ícone da barra de menus.", "Gli stessi comandi sono nell'icona della barra dei menu.", "Os mesmos comandos están na icona da barra de menús.", "Komando berak menu-barrako ikonoan daude.", "Os mesmos comandos estão no ícone da barra de menus.", "Dezelfde opdrachten vind je in het menubalksymbool.", "Te same polecenia są dostępne w ikonie na pasku menu.", "同じコマンドはメニューバーのアイコンにもあります。", "菜单栏图标中也有相同的命令。", "같은 명령을 메뉴 막대 아이콘에서도 사용할 수 있습니다."]),
     ("Recording {}", ["Grabando {}", "Enregistrant {}", "Enregistrement {}", "Aufnahme {}", "A gravar {}", "Registrazione {}", "Gravando {}", "Grabatzen {}", "Gravando {}", "Opname {}", "Nagrywanie {}", "{}を収録中", "正在录制 {}", "{} 녹화 중"]),
     ("Stop", ["Detener", "Atura", "Arrêter", "Stoppen", "Parar", "Interrompi", "Deter", "Gelditu", "Parar", "Stop", "Zatrzymaj", "停止", "停止", "중단"]),
     ("All settings have been reset", ["Se han restablecido todos los ajustes", "S'ha restablert tota la configuració", "Tous les réglages ont été réinitialisés", "Alle Einstellungen wurden zurückgesetzt", "Todas as definições foram repostas", "Tutte le impostazioni sono state ripristinate", "Restabelecéronse todos os axustes", "Ezarpen guztiak berrezarri dira", "Todos os ajustes foram redefinidos", "Alle instellingen zijn hersteld", "Zresetowano wszystkie ustawienia", "すべての設定をリセットしました", "所有设置已重置", "모든 설정이 재설정되었습니다"]),
@@ -340,6 +339,7 @@ const TABLE: &[(&str, [&str; 14])] = &[
     ("ALL settings in the application will be reset", ["Se restablecerán TODOS los ajustes de la aplicación", "Es restablirà TOTA la configuració de l'aplicació", "TOUS les réglages de l'application seront réinitialisés", "ALLE Einstellungen der App werden zurückgesetzt", "TODAS as definições da aplicação serão repostas", "TUTTE le impostazioni dell'app verranno ripristinate", "Restabeleceranse TODOS os axustes da aplicación", "Aplikazioaren ezarpen GUZTIAK berrezarriko dira", "TODOS os ajustes do aplicativo serão redefinidos", "ALLE instellingen van de app worden hersteld", "WSZYSTKIE ustawienia aplikacji zostaną zresetowane", "アプリケーションのすべての設定がリセットされます", "应用程序中的所有设置都将被重置", "응용 프로그램의 모든 설정이 재설정됩니다"]),
     ("Reset", ["Restablecer", "Restableix", "Réinitialiser", "Zurücksetzen", "Repor", "Ripristina", "Restabelecer", "Berrezarri", "Redefinir", "Herstel", "Resetuj", "リセット", "重置", "재설정"]),
     ("After screenshot:", ["Después de capturar:", "Després de capturar:", "Après la capture :", "Nach der Aufnahme:", "Depois da captura:", "Dopo l'istantanea:", "Despois de capturar:", "Argazkia atera ondoren:", "Após a captura:", "Na schermafbeelding:", "Po zrzucie ekranu:", "撮影後:", "截屏后：", "스크린샷 후:"]),
+    ("Click sound", ["Sonido al hacer clic", "So en fer clic", "Son au clic", "Klickgeräusch", "Som ao clicar", "Suono al clic", "Son ao premer", "Klik egitean soinua", "Som ao clicar", "Klikgeluid", "Dźwięk kliknięcia", "クリック音", "点击音效", "클릭 소리"]),
     ("Sound effects", ["Efectos de sonido", "Efectes de so", "Effets sonores", "Toneffekte", "Efeitos sonoros", "Effetti sonori", "Efectos de son", "Soinu-efektuak", "Efeitos sonoros", "Geluidseffecten", "Efekty dźwiękowe", "サウンドエフェクト", "声音效果", "사운드 효과"]),
     ("External Image Editor:", ["Editor de imágenes externo:", "Editor d'imatges extern:", "Éditeur d'images externe :", "Externer Bildeditor:", "Editor de imagem externo:", "Editor di immagini esterno:", "Editor de imaxes externo:", "Kanpoko irudi-editorea:", "Editor de imagens externo:", "Externe beeldeditor:", "Zewnętrzny edytor obrazów:", "外部イメージエディタ:", "外部图像编辑器：", "외부 이미지 편집기:"]),
     ("Choose application...", ["Elegir aplicación...", "Tria una aplicació...", "Choisir une application...", "App auswählen...", "Escolher aplicação...", "Scegli un'app...", "Escoller aplicación...", "Aukeratu aplikazioa...", "Escolher aplicativo...", "Kies app...", "Wybierz aplikację...", "アプリケーションを選択...", "选择应用程序...", "응용 프로그램 선택..."]),
@@ -358,7 +358,6 @@ const TABLE: &[(&str, [&str; 14])] = &[
     ("Video File Format:", ["Formato de vídeo:", "Format de vídeo:", "Format vidéo :", "Videoformat:", "Formato de vídeo:", "Formato video:", "Formato de vídeo:", "Bideo-formatua:", "Formato de vídeo:", "Videoformaat:", "Format pliku wideo:", "ビデオフォーマット:", "视频文件格式：", "비디오 파일 포맷:"]),
     ("GIF Quality:", ["Calidad GIF:", "Qualitat GIF:", "Qualité GIF :", "GIF-Qualität:", "Qualidade GIF:", "Qualità GIF:", "Calidade GIF:", "GIF kalitatea:", "Qualidade GIF:", "GIF-kwaliteit:", "Jakość GIF:", "GIF画質:", "GIF 质量：", "GIF 품질:"]),
     ("Autosave to \"Movies\" folder", ["Guardar automáticamente en «Películas»", "Desa automàticament a «Pel·lícules»", "Enregistrer automatiquement dans « Films »", "Automatisch in „Filme“ speichern", "Guardar automaticamente em «Filmes»", "Salva automaticamente in «Filmati»", "Gardar automaticamente en «Películas»", "Gorde automatikoki «Filmak» karpetan", "Salvar automaticamente em \"Filmes\"", "Bewaar automatisch in map ‘Films’", "Automatycznie zachowuj w folderze „Filmy”", "「ムービー」フォルダに自動保存", "自动存储到「影片」文件夹", "'동영상' 폴더에 자동 저장"]),
-    ("Drag and drop copy:", ["Copia al arrastrar y soltar:", "Còpia en arrossegar i deixar anar:", "Copie par glisser-déposer :", "Kopie per Drag & Drop:", "Cópia ao arrastar e largar:", "Copia con trascinamento:", "Copia ao arrastrar e soltar:", "Arrastatuta kopiatzean:", "Cópia ao arrastar e soltar:", "Kopie bij slepen:", "Kopia przy przeciąganiu:", "ドラッグ&ドロップ時のコピー:", "拖放拷贝：", "드래그 앤 드롭 복사:"]),
     ("Copy to clipboard:", ["Copiar al portapapeles:", "Copia al porta-retalls:", "Copier dans le presse-papiers :", "In Zwischenablage kopieren:", "Copiar para a área de transferência:", "Copia negli appunti:", "Copiar no portapapeis:", "Kopiatu arbelean:", "Copiar para a Área de Transferência:", "Kopieer naar klembord:", "Kopiuj do schowka:", "クリップボードにコピー:", "拷贝到剪贴板：", "클립보드에 복사:"]),
     ("Filename template:", ["Plantilla de nombre de archivo:", "Plantilla de nom de fitxer:", "Modèle de nom de fichier :", "Dateinamenvorlage:", "Modelo de nome de ficheiro:", "Modello del nome file:", "Modelo de nome de ficheiro:", "Fitxategi-izenaren eredua:", "Modelo de nome de arquivo:", "Sjabloon bestandsnaam:", "Szablon nazwy pliku:", "ファイル名テンプレート:", "文件名模板：", "파일 이름 템플릿:"]),
     ("%Y — 4-digit year,  %y — 2-digit year, %m — month, %d — day,\n%H — hour, %M — minutes, %S — seconds, %W — window title,\n%R — 5 random symbols, %T - file type", ["%Y — año (4 cifras),  %y — año (2 cifras), %m — mes, %d — día,\n%H — hora, %M — minutos, %S — segundos, %W — título de la ventana,\n%R — 5 símbolos aleatorios, %T - tipo de archivo", "%Y — any (4 xifres),  %y — any (2 xifres), %m — mes, %d — dia,\n%H — hora, %M — minuts, %S — segons, %W — títol de la finestra,\n%R — 5 símbols aleatoris, %T - tipus de fitxer", "%Y — année (4 chiffres),  %y — année (2 chiffres), %m — mois, %d — jour,\n%H — heure, %M — minutes, %S — secondes, %W — titre de la fenêtre,\n%R — 5 symboles aléatoires, %T - type de fichier", "%Y — Jahr (4-stellig),  %y — Jahr (2-stellig), %m — Monat, %d — Tag,\n%H — Stunde, %M — Minuten, %S — Sekunden, %W — Fenstertitel,\n%R — 5 zufällige Zeichen, %T - Dateityp", "%Y — ano (4 algarismos),  %y — ano (2 algarismos), %m — mês, %d — dia,\n%H — hora, %M — minutos, %S — segundos, %W — título da janela,\n%R — 5 símbolos aleatórios, %T - tipo de ficheiro", "%Y — anno (4 cifre),  %y — anno (2 cifre), %m — mese, %d — giorno,\n%H — ora, %M — minuti, %S — secondi, %W — titolo della finestra,\n%R — 5 simboli casuali, %T - tipo di file", "%Y — ano (4 cifras),  %y — ano (2 cifras), %m — mes, %d — día,\n%H — hora, %M — minutos, %S — segundos, %W — título da xanela,\n%R — 5 símbolos aleatorios, %T - tipo de ficheiro", "%Y — urtea (4 digitu),  %y — urtea (2 digitu), %m — hila, %d — eguna,\n%H — ordua, %M — minutuak, %S — segundoak, %W — leihoaren izenburua,\n%R — 5 ausazko ikur, %T - fitxategi mota", "%Y — ano (4 dígitos),  %y — ano (2 dígitos), %m — mês, %d — dia,\n%H — hora, %M — minutos, %S — segundos, %W — título da janela,\n%R — 5 símbolos aleatórios, %T - tipo de arquivo", "%Y — jaar (4 cijfers),  %y — jaar (2 cijfers), %m — maand, %d — dag,\n%H — uur, %M — minuten, %S — seconden, %W — venstertitel,\n%R — 5 willekeurige tekens, %T - bestandstype", "%Y — rok (4 cyfry),  %y — rok (2 cyfry), %m — miesiąc, %d — dzień,\n%H — godzina, %M — minuty, %S — sekundy, %W — tytuł okna,\n%R — 5 losowych znaków, %T - typ pliku", "%Y — 西暦(4桁)、 %y — 西暦(2桁)、%m — 月、%d — 日、\n%H — 時、%M — 分、%S — 秒、%W — ウインドウのタイトル、\n%R — ランダムな5文字、%T - ファイルの種類", "%Y — 4 位年份，%y — 2 位年份，%m — 月，%d — 日，\n%H — 时，%M — 分，%S — 秒，%W — 窗口标题，\n%R — 5 个随机字符，%T - 文件类型", "%Y — 연도(4자리),  %y — 연도(2자리), %m — 월, %d — 일,\n%H — 시, %M — 분, %S — 초, %W — 윈도우 제목,\n%R — 임의의 기호 5개, %T - 파일 유형"]),
@@ -367,9 +366,9 @@ const TABLE: &[(&str, [&str; 14])] = &[
     ("Automatic", ["Automático", "Automàtic", "Automatique", "Automatisch", "Automático", "Automatico", "Automático", "Automatikoa", "Automático", "Automatisch", "Automatyczny", "自動", "自动", "자동"]),
     ("Light", ["Claro", "Clar", "Clair", "Hell", "Claro", "Chiaro", "Claro", "Argia", "Claro", "Licht", "Jasny", "ライト", "浅色", "라이트"]),
     ("Dark", ["Oscuro", "Fosc", "Sombre", "Dunkel", "Escuro", "Scuro", "Escuro", "Iluna", "Escuro", "Donker", "Ciemny", "ダーク", "深色", "다크"]),
+    ("Frozen area:", ["Área congelada:", "Àrea congelada:", "Zone figée :", "Eingefrorener Bereich:", "Área congelada:", "Area congelata:", "Área conxelada:", "Area izoztua:", "Área congelada:", "Bevroren gebied:", "Zamrożony obszar:", "静止画面:", "冻结区域：", "정지 화면:"]),
     ("Capture area:", ["Captura de área:", "Captura d'àrea:", "Capture de zone :", "Bereichsaufnahme:", "Captura de área:", "Cattura di un'area:", "Captura de área:", "Area-kaptura:", "Captura de área:", "Gebied vastleggen:", "Zrzut obszaru:", "範囲キャプチャ:", "截取区域：", "영역 캡처:"]),
     ("Show magnifier", ["Mostrar lupa", "Mostra la lupa", "Afficher la loupe", "Lupe anzeigen", "Mostrar lupa", "Mostra la lente", "Amosar lupa", "Erakutsi lupa", "Mostrar lupa", "Toon vergrootglas", "Pokazuj lupę", "拡大鏡を表示", "显示放大镜", "돋보기 표시"]),
-    ("Highlight window under cursor", ["Resaltar la ventana bajo el cursor", "Ressalta la finestra sota el cursor", "Surligner la fenêtre sous le curseur", "Fenster unter dem Zeiger hervorheben", "Realçar a janela sob o cursor", "Evidenzia la finestra sotto il cursore", "Resaltar a xanela baixo o cursor", "Nabarmendu kurtsorearen azpiko leihoa", "Realçar a janela sob o cursor", "Markeer venster onder aanwijzer", "Wyróżniaj okno pod kursorem", "ポインタの下のウインドウを強調", "高亮显示指针下的窗口", "포인터 아래 윈도우 강조"]),
     ("Add shadow to window", ["Añadir sombra a la ventana", "Afegeix ombra a la finestra", "Ajouter une ombre à la fenêtre", "Fenster mit Schatten", "Adicionar sombra à janela", "Aggiungi un'ombra alla finestra", "Engadir sombra á xanela", "Gehitu itzala leihoari", "Adicionar sombra à janela", "Voeg schaduw toe aan venster", "Dodawaj cień do okna", "ウインドウに影を追加", "为窗口添加阴影", "윈도우에 그림자 추가"]),
     ("Click to snap a window", ["Clic para capturar una ventana", "Fes clic per capturar una finestra", "Cliquer pour capturer une fenêtre", "Klicken, um ein Fenster aufzunehmen", "Clicar para capturar uma janela", "Fai clic per catturare una finestra", "Clic para capturar unha xanela", "Egin klik leiho bat kapturatzeko", "Clicar para capturar uma janela", "Klik om een venster vast te leggen", "Kliknij, aby uchwycić okno", "クリックでウインドウを撮影", "点按以截取窗口", "클릭하여 윈도우 캡처"]),
     ("Show hints", ["Mostrar consejos", "Mostra consells", "Afficher les astuces", "Hinweise anzeigen", "Mostrar dicas", "Mostra i suggerimenti", "Amosar consellos", "Erakutsi aholkuak", "Mostrar dicas", "Toon tips", "Pokazuj wskazówki", "ヒントを表示", "显示提示", "힌트 표시"]),
@@ -447,7 +446,8 @@ pub fn paint_flag(p: &Painter, r: Rect, lang: Lang) {
     let (w, h) = (r.width(), r.height());
     match lang {
         Lang::Ca => {
-            // the senyera: nine stripes, four of them red
+            // the senyera: nine stripes, four of them red (FLAG's height is
+            // a multiple of 9, so each stripe is a whole number of pixels)
             p.rect_filled(r, 0.0, Color32::from_rgb(252, 221, 9));
             let s = h / 9.0;
             for k in [1.0, 3.0, 5.0, 7.0] {
@@ -592,7 +592,22 @@ fn vertical_tricolour(p: &Painter, r: Rect, colours: [Color32; 3]) {
     }
 }
 
-const FLAG: egui::Vec2 = egui::Vec2::new(20.0, 14.0);
+/// Flag size: 3:2, and 18 points high so the senyera's nine stripes are 2
+/// points (4 pixels on Retina) each and stay crisp.
+const FLAG: egui::Vec2 = egui::Vec2::new(27.0, 18.0);
+
+/// Height of the language button.
+pub const PICKER_H: f32 = 36.0;
+/// Space between the button's edges and its flag / chevron.
+const PICKER_PAD: f32 = 14.0;
+
+/// Where a flag goes: `FLAG`-sized, `left` from the left and centred on
+/// `cy`, snapped to whole pixels so the stripes' edges stay sharp.
+fn flag_rect(ui: &egui::Ui, left: f32, cy: f32) -> Rect {
+    let ppp = ui.ctx().pixels_per_point();
+    let snap = |v: f32| (v * ppp).round() / ppp;
+    Rect::from_min_size(pos2(snap(left), snap(cy - FLAG.y / 2.0)), FLAG)
+}
 
 /// A button showing the current language's flag and name (or its two-letter
 /// code when `compact`) that opens a menu with all of them. Returns true when
@@ -601,20 +616,24 @@ pub fn lang_picker(ui: &mut egui::Ui, lang: &mut Lang, compact: bool) -> bool {
     let label = if compact { lang.code() } else { lang.name() };
     let font = FontId::proportional(13.0);
     let text_w = ui.fonts(|f| f.layout_no_wrap(label.to_string(), font.clone(), Color32::WHITE).size().x);
-    let (r, resp) = ui.allocate_exact_size(vec2(8.0 + FLAG.x + 6.0 + text_w + 18.0, 28.0), Sense::click());
+    let (r, resp) = ui.allocate_exact_size(vec2(PICKER_PAD + FLAG.x + 8.0 + text_w + 10.0 + 8.0 + PICKER_PAD, PICKER_H), Sense::click());
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let vis = ui.style().interact(&resp);
     let pal = crate::theme::pal(ui.ctx());
-    let hov = crate::theme::hover_amount(ui.ctx(), resp.id, resp.hovered());
+    // styled like the app's other buttons: a glass surface that lightens and
+    // takes a turquoise tint under the pointer
+    let lit = resp.hovered() || resp.has_focus() || egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
+    let hov = crate::theme::hover_amount(ui.ctx(), resp.id, lit);
     let p = ui.painter();
-    p.rect_filled(r, 8.0, pal.card);
-    p.rect_filled(r, 8.0, crate::theme::hover_veil(&pal, hov));
-    p.rect_stroke(r, 8.0, Stroke::new(1.0_f32, pal.border), egui::StrokeKind::Inside);
-    let fr = Rect::from_min_size(pos2(r.min.x + 8.0, r.center().y - FLAG.y / 2.0), FLAG);
+    crate::theme::hover_glow(p, r, 10, &pal, hov);
+    crate::theme::glass(p, r, 10, &pal, &[]);
+    p.rect_filled(r.shrink(1.0), 9.0, crate::theme::hover_veil(&pal, hov));
+    crate::theme::hover_fill(p, r, 10.0, &pal, 0.18 * hov);
+    let fr = flag_rect(ui, r.min.x + PICKER_PAD, r.center().y);
     paint_flag(p, fr, *lang);
-    p.text(pos2(fr.max.x + 6.0, r.center().y), Align2::LEFT_CENTER, label, font.clone(), vis.text_color());
+    p.text(pos2(fr.max.x + 8.0, r.center().y), Align2::LEFT_CENTER, label, font.clone(), vis.text_color());
     // a small chevron
-    let c = pos2(r.max.x - 10.0, r.center().y);
+    let c = pos2(r.max.x - PICKER_PAD - 4.0, r.center().y);
     p.line_segment([c + vec2(-3.5, -1.5), c + vec2(0.0, 2.0)], Stroke::new(1.3_f32, vis.text_color()));
     p.line_segment([c + vec2(0.0, 2.0), c + vec2(3.5, -1.5)], Stroke::new(1.3_f32, vis.text_color()));
     let resp = resp.on_hover_text(t("Language"));
@@ -626,22 +645,21 @@ pub fn lang_picker(ui: &mut egui::Ui, lang: &mut Lang, compact: bool) -> bool {
         let here = current();
         let small = FontId::proportional(12.0);
         for l in Lang::sorted_in(here) {
-            let (rr, rsp) = ui.allocate_exact_size(vec2(330.0, 26.0), Sense::click());
+            let (rr, rsp) = ui.allocate_exact_size(vec2(360.0, 32.0), Sense::click());
+            let pal = crate::theme::pal(ui.ctx());
+            let hov = crate::theme::hover_amount(ui.ctx(), rsp.id, rsp.hovered() || rsp.has_focus());
             let p = ui.painter();
-            if rsp.hovered() {
-                p.rect_filled(rr, 6.0, ui.visuals().widgets.hovered.weak_bg_fill);
-            }
-            let fr = Rect::from_min_size(pos2(rr.min.x + 6.0, rr.center().y - FLAG.y / 2.0), FLAG);
+            crate::theme::hover_fill(p, rr, 7.0, &pal, 0.18 * hov);
+            let fr = flag_rect(ui, rr.min.x + 10.0, rr.center().y);
             paint_flag(p, fr, l);
             let col = ui.visuals().text_color();
             let name = l.name_in(here);
-            p.text(pos2(fr.max.x + 8.0, rr.center().y), Align2::LEFT_CENTER, name, font.clone(), col);
+            p.text(pos2(fr.max.x + 10.0, rr.center().y), Align2::LEFT_CENTER, name, font.clone(), col);
             if !name.to_lowercase().starts_with(&l.name().to_lowercase()) {
-                let hint = crate::theme::pal(ui.ctx()).hint;
-                p.text(pos2(rr.max.x - 28.0, rr.center().y), Align2::RIGHT_CENTER, l.name(), small.clone(), hint);
+                p.text(pos2(rr.max.x - 32.0, rr.center().y), Align2::RIGHT_CENTER, l.name(), small.clone(), pal.hint);
             }
             if l == *lang {
-                p.text(pos2(rr.max.x - 8.0, rr.center().y), Align2::RIGHT_CENTER, "✓", font.clone(), col);
+                p.text(pos2(rr.max.x - 12.0, rr.center().y), Align2::RIGHT_CENTER, "✓", font.clone(), col);
             }
             if rsp.clicked() && l != *lang {
                 *lang = l;

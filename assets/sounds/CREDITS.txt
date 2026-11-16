@@ -1,0 +1,4 @@
+click.wav — "audio-volume-change" from the freedesktop.org sound theme 0.8
+(https://www.freedesktop.org/wiki/Specifications/sound-theme-spec/).
+Copyright: Lucas McCallister. License: CC-BY-SA (as stated in the theme's CREDITS file).
+Converted from Ogg Vorbis to 16-bit mono WAV for MacControl (and reused in QuickSnap); otherwise unchanged.
