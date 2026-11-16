@@ -152,7 +152,8 @@ needed), which is enough for the Mac it was built on.
 With `--screenshot`, the environment variables `QUICKSNAP_VIEW` (`home`, `prefs-general`,
 `prefs-advanced`…), `QUICKSNAP_THEME` (`light`/`dark`), `QUICKSNAP_LANG` (`en`, `es`, `ca`, `gl`, `eu`, `fr`, `de`, `it`, `pt`, `pt-br`, `nl`, `pl`,
 `ja`, `zh`, `ko`)
-and `QUICKSNAP_WINDOW` (e.g. `1000x620`) choose what is shown.
+and `QUICKSNAP_WINDOW` (e.g. `1000x620`) choose what is shown; `QUICKSNAP_ZOOM=2`
+renders at twice the resolution (Retina-sharp shots on a 1x display).
 
 ## Project layout
 

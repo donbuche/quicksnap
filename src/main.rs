@@ -49,13 +49,18 @@ fn main() -> eframe::Result<()> {
         .ok()
         .and_then(|v| v.split_once('x').and_then(|(w, h)| Some([w.parse::<f32>().ok()?, h.parse::<f32>().ok()?])))
         .unwrap_or([1240.0, 800.0]);
+    // QUICKSNAP_ZOOM=2 draws everything twice as large in a window twice as
+    // large: Retina-sharp screenshots of the same layout on a 1x display.
+    let zoom = screenshot_zoom();
+    let size = [size[0] * zoom, size[1] * zoom];
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title(settings::APP_NAME)
             .with_inner_size(size)
             // wide enough for the editor's three top bars in one row, in
-            // every language
-            .with_min_inner_size([1180.0, 640.0])
+            // every language (screenshots set their own size: the
+            // Preferences ones are narrower)
+            .with_min_inner_size(if screenshot.is_some() { [0.0, 0.0] } else { [1180.0, 640.0] })
             .with_icon(std::sync::Arc::new(appicon::icon_data(256)))
             // see-through, for the frosted-glass look (see theme::apply_vibrancy)
             .with_transparent(cfg!(target_os = "macos") && screenshot.is_none())
@@ -80,4 +85,9 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| Ok(Box::new(app::App::new(cc, screenshot)))),
     )
+}
+
+/// The QUICKSNAP_ZOOM factor for `--screenshot` (1 when unset).
+pub fn screenshot_zoom() -> f32 {
+    std::env::var("QUICKSNAP_ZOOM").ok().and_then(|z| z.parse::<f32>().ok()).filter(|z| *z >= 1.0).unwrap_or(1.0)
 }
