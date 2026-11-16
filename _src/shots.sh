@@ -5,7 +5,10 @@
 #
 # The binary defaults to target/release/quicksnap (build it on develop with
 # `cargo build --release`; target/ is ignored, so it survives `git switch`).
-# Writes assets/shots/<lang>/<view>-<theme>.jpg
+# Writes assets/shots/<lang>/<view>-<theme>.jpg, rendered at 2x
+# (QUICKSNAP_ZOOM=2) so they are Retina-sharp on any display.
+# Home and editor: a 1180x645-point window; Preferences: 500 points wide
+# (the app sets the height to fit each tab).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -23,11 +26,15 @@ for lang in $LANGS; do
   for view in $VIEWS; do
     for theme in dark light; do
       png="$TMP/$view-$theme.png"
+      case "$view" in
+        home|editor) win=1180x645 ;;
+        *) win=500x645 ;;
+      esac
       if [ "$view" = editor ]; then
-        QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=1000x645 \
+        QUICKSNAP_ZOOM=2 QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=$win \
           "$BIN" --screenshot "$png" >/dev/null 2>&1
       else
-        QUICKSNAP_VIEW=$view QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=1000x645 \
+        QUICKSNAP_ZOOM=2 QUICKSNAP_VIEW=$view QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=$win \
           "$BIN" --screenshot "$png" >/dev/null 2>&1
       fi
       case "$view" in
