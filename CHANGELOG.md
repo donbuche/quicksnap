@@ -2,6 +2,35 @@
 
 All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://semver.org).
 
+## [0.4.0] - 2026-11-16
+
+### Added
+- Click sound: a soft click when a button, tab, tile, checkbox or menu item is pressed
+  (the same sound as MacControl), on by default and switchable in Preferences → General.
+  It falls back to smaller audio buffers when an output device refuses the default one
+
+### Changed
+- Nearly flat look: one faint shadow instead of large soft ones, and much weaker glows
+- Home screen: the six capture icons are larger and stand on their own (no background
+  or border) and turn turquoise on hover, keyboard focus and press; the tiles are wider
+  so long labels keep a margin; the line about the menu-bar icon is gone
+- Language picker styled like the other buttons, with more padding, in the home screen
+  and in Preferences; flags are larger and pixel-aligned, so the nine stripes of the
+  Catalan flag stay sharp
+- Selected buttons (theme, menus, hotkey being recorded) have white text on the violet,
+  for enough contrast in light mode
+- Preferences: each label is centred on its row's controls; the magnifier and hints
+  options are in their own "Frozen area" group, the only capture they apply to
+- README and website screenshots updated
+
+### Fixed
+- "About QuickSnap" in Preferences did nothing visible: it opened behind the
+  Preferences window; it now opens over it
+
+### Removed
+- Preferences that did nothing: "Highlight window under cursor", the menu-bar "Show
+  hints" and "Drag and drop copy"
+
 ## [0.3.1] - 2026-11-16
 
 No changes in the app itself; this version is about how it is released.
