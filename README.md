@@ -79,8 +79,8 @@ then save or copy it, with no accounts, no uploads and no telemetry.
 
 ## Install
 
-1. Download `QuickSnap-<version>.dmg` from the
-   [Releases](../../releases) page.
+1. Download [**QuickSnap.dmg**](../../releases/latest/download/QuickSnap.dmg) (the latest
+   version), or pick a version on the [Releases](../../releases) page.
 2. Open it and drag **QuickSnap** to **Applications**.
 3. Launch QuickSnap from Launchpad or Spotlight.
 
@@ -202,6 +202,15 @@ git flow release start X.Y.Z        # bump Cargo.toml, README badge, CHANGELOG.m
 git flow release finish X.Y.Z       # merge into main, tag vX.Y.Z, merge back into develop
 git push origin main develop --tags
 ```
+
+Every push to `main` runs the [Release workflow](.github/workflows/release.yml): it reads
+the version from `Cargo.toml` and, if that version has no release yet, builds the app and
+the DMG on an Apple Silicon runner and publishes release `vX.Y.Z` with
+`QuickSnap-X.Y.Z.dmg`, `QuickSnap.dmg` (fixed name, so
+`releases/latest/download/QuickSnap.dmg` always gives the latest version) and
+`SHA256SUMS.txt`. The release notes are that version's section of `CHANGELOG.md`, so
+write it before finishing the release. Pushing `main` again without a new version does
+nothing.
 
 ## Roadmap
 

@@ -2,6 +2,13 @@
 
 All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+- Releases are published automatically: every push to `main` with a new version builds
+  the DMG on GitHub Actions and creates the GitHub release, with notes from this file
+- The latest DMG is always at `releases/latest/download/QuickSnap.dmg`
+
 ## [0.3.0] - 2026-11-16
 
 ### Added
