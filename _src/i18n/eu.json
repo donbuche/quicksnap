@@ -140,5 +140,6 @@
   "consent_text": "Google Analytics erabil dezakegu bisitak eta deskargak zenbatzeko? Cookieak gordetzen ditu zure gailuan. Nahi duzunean alda dezakezu erabakia orriaren oinetik.",
   "consent_accept": "Onartu",
   "consent_reject": "Ukatu",
-  "consent_settings": "Cookieen hobespenak"
+  "consent_settings": "Cookieen hobespenak",
+  "privacy_link": "Pribatutasun-politika (ingelesez)"
 }

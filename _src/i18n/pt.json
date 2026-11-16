@@ -140,5 +140,6 @@
   "consent_text": "Podemos usar o Google Analytics para contar visitas e transferências? Guarda cookies no seu dispositivo. Pode mudar de ideias a qualquer momento no fundo da página.",
   "consent_accept": "Aceitar",
   "consent_reject": "Rejeitar",
-  "consent_settings": "Preferências de cookies"
+  "consent_settings": "Preferências de cookies",
+  "privacy_link": "Política de privacidade (em inglês)"
 }

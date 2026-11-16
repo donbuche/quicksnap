@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · QuickSnap</title>
+<meta name="description" content="How the QuickSnap website uses Google Analytics, cookies and your browser's storage, and what your rights are. The QuickSnap app itself collects nothing.">
+<link rel="canonical" href="{{$canonical}}">
+<meta name="theme-color" content="#151226" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3f1fb" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="dark light">
+<meta name="author" content="Joan Galtés i Moreno">
+<link rel="icon" type="image/png" href="{{$root}}assets/favicon.png">
+<link rel="apple-touch-icon" href="{{$root}}assets/icon-256.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="QuickSnap">
+<meta property="og:url" content="{{$canonical}}">
+<meta property="og:title" content="Privacy policy · QuickSnap">
+<meta property="og:locale" content="en_US">
+{{$style}}
+<style>
+.policy { max-width: 760px; margin: 0 auto; padding: 56px 0 24px; }
+.policy h1 { font-size: clamp(36px, 6vw, 56px); font-weight: 800; letter-spacing: -0.03em; }
+.policy .updated { color: var(--hint); margin: 12px 0 0; }
+.policy .summary { margin-top: 32px; padding: 22px 24px; }
+.policy .summary ul { margin: 8px 0 0; padding-left: 20px; }
+.policy h2 { font-size: clamp(22px, 3vw, 28px); margin: 48px 0 12px; }
+.policy p, .policy li { color: var(--hint); font-size: 16.5px; }
+.policy li + li { margin-top: 6px; }
+.policy b, .policy strong, .policy th { color: var(--text); }
+.policy a { color: var(--text); text-underline-offset: 3px; }
+.policy table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 15.5px; }
+.policy th, .policy td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--hint); }
+.policy th { font-weight: 600; }
+.policy code { color: var(--text); }
+.policy .table-wrap { overflow-x: auto; }
+.back { display: inline-flex; align-items: center; gap: 8px; margin-top: 40px; }
+.back svg { width: 18px; height: 18px; }
+</style>
+{{$headscript}}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="consent glass" id="consent" role="region" aria-labelledby="consent-title" hidden>
+  <p id="consent-title" class="consent-title"><b>{{consent_label}}</b></p>
+  <p>{{consent_text}}</p>
+  <div class="actions">
+    <button class="btn btn-ghost btn-sm" type="button" data-consent="denied">{{consent_reject}}</button>
+    <button class="btn btn-ghost btn-sm" type="button" data-consent="granted">{{consent_accept}}</button>
+  </div>
+</div>
+
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+
+<header class="site-header wrap">
+  <div class="bar glass">
+    <a class="brand" href="{{$root}}"><img src="{{$root}}assets/icon-256.png" alt="" width="30" height="30">QuickSnap</a>
+  </div>
+</header>
+
+<main id="main" tabindex="-1" class="wrap">
+  <article class="policy">
+    <h1>Privacy policy</h1>
+    <p class="updated">Last updated: <time datetime="{{$today}}">{{$today_long}}</time></p>
+
+    <div class="summary glass">
+      <p><strong>In short</strong></p>
+      <ul>
+        <li>The <b>QuickSnap app</b> collects nothing: no accounts, no uploads, no telemetry.</li>
+        <li>This <b>website</b> only uses Google Analytics <b>if you accept it</b>. Until then, nothing is sent to Google.</li>
+        <li>You can change your choice at any time with the <b>Cookie settings</b> button below or in the footer of any page.</li>
+      </ul>
+    </div>
+
+    <h2 id="who">Who is responsible</h2>
+    <p>The QuickSnap website at <a href="{{$base}}">{{$base}}</a>, in all its languages, is run by <b>Joan Galtés i Moreno</b>, Catalonia (Spain), who is the data controller for the analytics described here.</p>
+    <p>To ask anything about your data or to exercise your rights, get in touch through the GitHub profile <a href="https://github.com/donbuche">github.com/donbuche</a>.</p>
+
+    <h2 id="app">The QuickSnap app</h2>
+    <p>The app runs entirely on your Mac. It has no accounts and does not send your screenshots, recordings or any usage data anywhere. Your settings are stored on your Mac, in <code>~/Library/Application Support/QuickSnap/</code>.</p>
+
+    <h2 id="analytics">Google Analytics on this website</h2>
+    <p>If you accept, the website loads <b>Google Analytics 4</b> to learn how many people visit, in which languages, and how many download the app. It records:</p>
+    <ul>
+      <li>the pages you view, the page you came from, and the language of the page;</li>
+      <li>clicks on the download buttons (which button, on which language page) and on the language links;</li>
+      <li>your approximate location (country and city), worked out from your IP address. Google Analytics 4 does not store IP addresses;</li>
+      <li>general information about your device and browser: type, operating system, screen size and browser language.</li>
+    </ul>
+    <p>Google signals and ad personalisation are turned off, so the data is not linked to your Google account or used for advertising. The data is kept for <b>14 months</b> and then deleted.</p>
+    <p><b>Legal basis:</b> your consent (article 6.1.a of the GDPR, and article 22.2 of the Spanish LSSI-CE for cookies). You can withdraw it at any time, as easily as you gave it.</p>
+    <p><b>Who processes it:</b> Google Ireland Limited, on behalf of the website. Google may transfer data to the United States; Google LLC is certified under the EU-US Data Privacy Framework. See <a href="https://policies.google.com/privacy">Google's privacy policy</a> and <a href="https://support.google.com/analytics/answer/6004245">how Google Analytics safeguards data</a>.</p>
+
+    <h2 id="cookies">Cookies and browser storage</h2>
+    <p>Only if you accept analytics:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Cookie</th><th scope="col">Set by</th><th scope="col">Purpose</th><th scope="col">Lasts</th></tr></thead>
+        <tbody>
+          <tr><td><code>_ga</code></td><td>Google Analytics</td><td>Tells visits from the same browser apart</td><td>2 years</td></tr>
+          <tr><td><code>_ga_{{$ga_suffix}}</code></td><td>Google Analytics</td><td>Keeps track of the current visit</td><td>2 years</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>If you reject analytics, or withdraw your consent later, these cookies are deleted.</p>
+    <p>Always, to remember your choices, the website keeps a few values in your browser's local storage. They never leave your device and are not cookies:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Name</th><th scope="col">Remembers</th></tr></thead>
+        <tbody>
+          <tr><td><code>qs-consent</code></td><td>Whether you accepted or rejected analytics</td></tr>
+          <tr><td><code>qs-theme</code></td><td>Light or dark appearance, if you changed it</td></tr>
+          <tr><td><code>qs-motion</code></td><td>Whether you paused the animations</td></tr>
+          <tr><td><code>qs-lang</code></td><td>The language you picked</td></tr>
+          <tr><td><code>qs-suggest-…</code></td><td>That you closed the suggestion to read the page in your language</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>You can delete all of them at any time by clearing this site's data in your browser.</p>
+
+    <h2 id="hosting">Hosting and downloads</h2>
+    <p>The website is hosted on <b>GitHub Pages</b>, and the app is downloaded from <b>GitHub Releases</b>. GitHub, Inc. receives your IP address when you visit or download, and keeps it in its logs for security. This happens with or without analytics; see the <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub privacy statement</a>.</p>
+    <p>The website loads no other external resources: no web fonts, no social media buttons, no advertising.</p>
+
+    <h2 id="rights">Your rights</h2>
+    <p>You have the right to access, correct and erase your data, to restrict or object to its processing, to data portability, and to withdraw your consent at any time. Analytics data is pseudonymous: it cannot be linked to you by name. The quickest way to stop it and remove it from your browser is to reject analytics in the cookie settings.</p>
+    <p>If you think your data has been mishandled, you can complain to the Spanish Data Protection Agency (<a href="https://www.aepd.es/" hreflang="es">AEPD</a>).</p>
+
+    <h2 id="changes">Changes to this policy</h2>
+    <p>If the website starts collecting anything new, this page will be updated first and you will be asked again before it applies to you. The date at the top shows the last change.</p>
+
+    <p><button class="btn btn-ghost" type="button" id="consent-open">{{consent_settings}}</button></p>
+    <p><a class="back" href="{{$root}}"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back to QuickSnap</a></p>
+  </article>
+</main>
+
+<footer class="site-footer wrap">
+  <div class="cols">
+    <div>
+      <p><b style="color:var(--text)">{{footer_by}}</b></p>
+    </div>
+    <div>
+      <nav aria-label="{{@footer_links_label}}">
+        <ul>
+          <li><a href="https://github.com/donbuche/quicksnap">{{footer_source}}</a></li>
+          <li><a href="https://github.com/donbuche/quicksnap/releases">{{footer_releases}}</a></li>
+          <li><a href="https://github.com/donbuche/quicksnap/issues">{{footer_issues}}</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var d = document.documentElement;
+  var consentBox = document.getElementById('consent');
+  var consentOpen = document.getElementById('consent-open');
+  var openedFromButton = false;
+  function fitConsent() {
+    var h = consentBox.hidden ? 0 : consentBox.offsetHeight + 32;
+    d.style.scrollPaddingBottom = h ? h + 'px' : '';
+    document.body.style.paddingBottom = h ? h + 'px' : '';
+  }
+  function showConsent(fromButton) {
+    openedFromButton = fromButton;
+    consentBox.hidden = false;
+    fitConsent();
+    if (fromButton) consentBox.querySelector('button').focus();
+  }
+  Array.prototype.forEach.call(consentBox.querySelectorAll('[data-consent]'), function (b) {
+    b.addEventListener('click', function () {
+      qsAnalytics.set(b.getAttribute('data-consent'));
+      consentBox.hidden = true;
+      fitConsent();
+      (openedFromButton ? consentOpen : document.getElementById('main')).focus();
+    });
+  });
+  consentOpen.addEventListener('click', function () { showConsent(true); });
+  window.addEventListener('resize', fitConsent);
+  if (!qsAnalytics.consent()) showConsent(false);
+})();
+</script>
+</body>
+</html>

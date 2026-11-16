@@ -140,5 +140,6 @@
   "consent_text": "訪問数とダウンロード数を把握するために Google アナリティクスを使用してもよろしいですか？お使いのデバイスに Cookie が保存されます。選択はページ下部からいつでも変更できます。",
   "consent_accept": "同意する",
   "consent_reject": "拒否する",
-  "consent_settings": "Cookie の設定"
+  "consent_settings": "Cookie の設定",
+  "privacy_link": "プライバシーポリシー（英語）"
 }

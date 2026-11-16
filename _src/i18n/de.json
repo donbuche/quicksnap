@@ -140,5 +140,6 @@
   "consent_text": "Dürfen wir Google Analytics verwenden, um Besuche und Downloads zu zählen? Dabei werden Cookies auf deinem Gerät gespeichert. Du kannst deine Wahl jederzeit unten auf der Seite ändern.",
   "consent_accept": "Akzeptieren",
   "consent_reject": "Ablehnen",
-  "consent_settings": "Cookie-Einstellungen"
+  "consent_settings": "Cookie-Einstellungen",
+  "privacy_link": "Datenschutzerklärung (auf Englisch)"
 }

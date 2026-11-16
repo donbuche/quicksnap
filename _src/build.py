@@ -283,6 +283,10 @@ def render(template, lang, texts):
         "shots": f"{root}assets/shots/{lang['code']}/",
         "version": VERSION,
         "ga": GA_ID,
+        "ga_suffix": GA_ID.split("-", 1)[1],
+        "base": BASE,
+        "today": datetime.date.today().isoformat(),
+        "today_long": datetime.date.today().strftime("%-d %B %Y"),
         "host": BASE.split("/")[2],
         "flag": lang["flag"],
         "lang_name": esc(lang["name"]),
@@ -321,6 +325,7 @@ def sitemap():
     links += f'\n    <xhtml:link rel="alternate" hreflang="x-default" href="{BASE}"/>'
     urls = "".join(
         f'\n  <url>\n    <loc>{BASE}{l["prefix"]}</loc>\n    <lastmod>{today}</lastmod>{links}\n  </url>' for l in LANGS)
+    urls += f'\n  <url>\n    <loc>{BASE}privacy/</loc>\n    <lastmod>{today}</lastmod>\n  </url>'
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
             'xmlns:xhtml="http://www.w3.org/1999/xhtml">' + urls + "\n</urlset>\n")
@@ -337,6 +342,15 @@ def main():
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(render(template, lang, texts), "utf-8")
         print(f"  {lang['code']:6} -> {target.relative_to(OUT)}")
+    # Privacy policy: English only, same look as the landing pages
+    style = re.search(r"<style>.*?</style>", template, re.S).group(0)
+    headscript = re.search(r"<script>\n  // Before first paint.*?</script>", template, re.S).group(0)
+    privacy = (SRC / "privacy.html").read_text("utf-8").replace("{{$style}}", style).replace("{{$headscript}}", headscript)
+    en = dict(LANGS[0], prefix="privacy/")
+    target = OUT / "privacy" / "index.html"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render(privacy, en, texts), "utf-8")
+    print("  privacy -> privacy/index.html")
     (OUT / "sitemap.xml").write_text(sitemap(), "utf-8")
     print("  sitemap.xml")
 

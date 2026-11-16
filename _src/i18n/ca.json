@@ -140,5 +140,6 @@
   "consent_text": "Podem fer servir Google Analytics per comptar visites i baixades? Desa galetes al teu dispositiu. Pots canviar d'opinió quan vulguis des del peu de la pàgina.",
   "consent_accept": "Accepta",
   "consent_reject": "Rebutja",
-  "consent_settings": "Preferències de galetes"
+  "consent_settings": "Preferències de galetes",
+  "privacy_link": "Política de privadesa (en anglès)"
 }
