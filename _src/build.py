@@ -30,7 +30,7 @@ SRC = Path(__file__).resolve().parent
 OUT = SRC.parent
 
 BASE = "https://donbuche.github.io/quicksnap/"
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 REPO = "https://github.com/donbuche/quicksnap"
 
 # Order of the app's language menu: English, the languages of Spain, the
