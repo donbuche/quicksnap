@@ -2,7 +2,7 @@
 
 All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [0.3.0] - 2026-11-16
 
 ### Added
 - Interface in 15 languages: French, German, Italian, Portuguese (Portugal and Brazil),
@@ -42,6 +42,6 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 First version: area, frozen-area, full-screen and delayed captures, screen recording,
 annotation editor, menu-bar app, global hotkeys and an English/Spanish/Catalan interface.
 
-[Unreleased]: https://github.com/donbuche/quicksnap/compare/v0.2.0...develop
+[0.3.0]: https://github.com/donbuche/quicksnap/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/donbuche/quicksnap/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/donbuche/quicksnap/releases/tag/v0.1.0
