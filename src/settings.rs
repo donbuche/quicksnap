@@ -21,7 +21,6 @@ pub const GIF_QUALITY_MAX: u32 = 100;
 pub const COPY_IMAGE: u8 = 1;
 pub const COPY_PATH: u8 = 4;
 pub const CLIPBOARD_FLAGS_DEFAULT: u8 = 1;
-pub const DRAG_DROP_FLAGS_DEFAULT: u8 = COPY_IMAGE | COPY_PATH;
 pub const DELAYED_CAPTURE_SECONDS: u32 = 10;
 
 // ---- Editor ----
@@ -75,6 +74,8 @@ pub struct Settings {
     // General
     pub after_shot: AfterShot,
     pub sound_effects: bool,
+    /// A soft click when a button or other control is pressed.
+    pub click_sound: bool,
     pub external_editor: String,
     pub start_at_launch: bool,
 
@@ -88,18 +89,15 @@ pub struct Settings {
     pub gif_fps: u32,
     pub gif_quality: u32,
     pub always_save_movie: bool,
-    pub drag_drop_flags: u8,
     pub clipboard_flags: u8,
     pub filename_template: String,
     pub apply_template_to_opened: bool,
 
     // Appearance
     pub show_magnifier: bool,
-    pub highlight_windows: bool,
     pub window_shadow: bool,
     pub shot_on_click: bool,
     pub show_tip: bool,
-    pub show_startup_tooltip: bool,
     pub hide_animation: bool,
     pub dont_show_notifications: bool,
     pub show_tooltips_editor: bool,
@@ -128,6 +126,7 @@ impl Default for Settings {
         Settings {
             after_shot: AfterShot::OpenEditor,
             sound_effects: false,
+            click_sound: true,
             external_editor: "/System/Applications/Preview.app".into(),
             start_at_launch: false,
 
@@ -140,17 +139,14 @@ impl Default for Settings {
             gif_fps: GIF_FPS_DEFAULT,
             gif_quality: GIF_QUALITY_DEFAULT,
             always_save_movie: false,
-            drag_drop_flags: DRAG_DROP_FLAGS_DEFAULT,
             clipboard_flags: CLIPBOARD_FLAGS_DEFAULT,
             filename_template: format!("{APP_NAME} %W %Y-%m-%d %H-%M-%S"),
             apply_template_to_opened: false,
 
             show_magnifier: true,
-            highlight_windows: true,
             window_shadow: true,
             shot_on_click: true,
             show_tip: true,
-            show_startup_tooltip: true,
             hide_animation: false,
             dont_show_notifications: false,
             show_tooltips_editor: true,

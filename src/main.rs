@@ -16,6 +16,7 @@ mod overlay;
 mod settings;
 mod settings_ui;
 mod shapes;
+mod sound;
 mod theme;
 
 fn main() -> eframe::Result<()> {
