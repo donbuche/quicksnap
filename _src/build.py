@@ -230,7 +230,7 @@ def jsonld(lang, t, canonical):
         "operatingSystem": "macOS 11+",
         "softwareVersion": VERSION,
         "fileSize": "5MB",
-        "downloadUrl": REPO + "/releases/latest",
+        "downloadUrl": REPO + "/releases/latest/download/QuickSnap.dmg",
         "installUrl": REPO + "/releases/latest",
         "image": BASE + "assets/icon-256.png",
         "screenshot": [shots + "home-dark.jpg", shots + "editor-dark.jpg"],
