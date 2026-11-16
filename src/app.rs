@@ -76,7 +76,6 @@ pub struct App {
     previous_area: Option<Rect>,
     latest: Option<RgbaImage>,
     toasts: Vec<Toast>,
-    about: bool,
     screenshot: Option<ScreenshotJob>,
     started: bool,
     /// Set by Quit; otherwise closing the main window only hides it.
@@ -278,7 +277,6 @@ impl App {
             previous_area: None,
             latest,
             toasts: Vec::new(),
-            about: false,
             screenshot: screenshot.map(|p| ScreenshotJob { path: p, frame: 0, requested: false }),
             started: false,
             quitting: false,
@@ -550,7 +548,7 @@ impl App {
     /// whether something was on screen (the capture then waits a moment so
     /// the windows are really gone).
     fn hide_for_capture(&mut self, ctx: &Context) -> bool {
-        let was_shown = !self.hidden || self.prefs.open || self.about;
+        let was_shown = !self.hidden || self.prefs.open;
         if !self.hidden {
             self.hidden = true;
             self.restore_after_capture = true;
@@ -558,7 +556,6 @@ impl App {
         }
         self.prefs.open = false;
         self.prefs.recording = None;
-        self.about = false;
         was_shown
     }
 
@@ -786,7 +783,6 @@ impl App {
             ui.add_space((full.height() * 0.09).max(16.0));
             ui.vertical_centered(|ui| {
                 let (r, _) = ui.allocate_exact_size(vec2(96.0, 96.0), Sense::hover());
-                theme::glow(ui.painter(), r.shrink(10.0), 40, &pal, 1.6);
                 theme::shadow(ui.painter(), r.shrink(6.0), 44, &pal);
                 ui.painter().image(logo.id(), r, Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), Color32::WHITE);
                 ui.add_space(10.0);
@@ -809,7 +805,9 @@ impl App {
                 (Icon::Clipboard, t("Open from Clipboard"), hk(Action::OpenFromClipboard), Command::OpenClipboard),
             ];
             // wide enough for most labels in every language (longer ones shrink)
-            let tile = vec2(196.0, 116.0);
+            let tile = vec2(224.0, 124.0);
+            // room kept free between a tile's label and its left/right edges
+            let pad_x = 22.0;
             let gap = 16.0;
             let cols = 3usize;
             let grid_w = tile.x * cols as f32 + gap * (cols as f32 - 1.0);
@@ -821,40 +819,33 @@ impl App {
                     tile,
                 );
                 let resp = ui.interact(r, ui.id().with(("tile", i)), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-                let hov = theme::hover_amount(ctx, resp.id, resp.hovered());
+                // hover, keyboard focus and press all light the tile up
+                let lit = resp.hovered() || resp.has_focus() || resp.is_pointer_button_down_on();
+                let hov = theme::hover_amount(ctx, resp.id, lit);
                 theme::hover_glow(ui.painter(), r, 20, &pal, hov);
                 theme::glass(ui.painter(), r, 20, &pal, &[]);
                 let p = ui.painter();
                 // under the pointer the tile lightens behind a see-through
                 // veil, inside its hairline border
                 p.rect_filled(r.shrink(1.0), 19.0, theme::hover_veil(&pal, hov));
-                // one-ink icons on a frosted white chip; the chip lights up in
-                // the accent colour under the pointer (red while recording)
+                // bare one-ink icons: accent at rest, turquoise when the tile
+                // is hovered, focused or pressed (red while recording)
                 let recording = *cmd == Command::RecordVideo && self.recorder.is_some();
                 // without a shortcut the icon and name sit a little lower, centred
                 let dy = if key.is_empty() { 6.0 } else { 0.0 };
-                let chip = Rect::from_center_size(egui::pos2(r.center().x, r.top() + 32.0 + dy), vec2(44.0, 44.0));
-                // at rest a soft wash of the accent gradient with an accent
-                // icon; under the pointer the turquoise gradient, white icon
-                if recording {
-                    p.rect_filled(chip, 13.0, Color32::from_rgb(0xff, 0x3b, 0x30));
-                } else {
-                    let wash = if pal.dark { 0.22 } else { 0.16 };
-                    theme::hover_glow(p, chip, 13, &pal, hov);
-                    theme::accent_fill(p, chip, 13.0, &pal, wash * (1.0 - hov));
-                    theme::hover_fill(p, chip, 13.0, &pal, hov);
-                    p.rect_stroke(chip, 13.0, Stroke::new(1.0_f32, Color32::from_white_alpha(if pal.dark { 30 } else { 120 })), egui::StrokeKind::Inside);
-                }
+                let icon_r = Rect::from_center_size(egui::pos2(r.center().x, r.top() + 34.0 + dy), vec2(36.0, 36.0));
                 let rest_ic = if pal.dark { Color32::from_rgb(0xc9, 0xbb, 0xff) } else { pal.accent };
-                let ic = if recording { Color32::WHITE } else { theme::mix(rest_ic, Color32::WHITE, hov) };
-                icons::paint(p, chip.shrink(9.0), *icon, ic);
+                let lit_ic = if pal.dark { pal.hover_b } else { pal.hover_a };
+                let ic = if recording { Color32::from_rgb(0xff, 0x3b, 0x30) } else { theme::mix(rest_ic, lit_ic, hov) };
+                icons::paint(p, icon_r, *icon, ic);
                 // long translations shrink a little to fit the tile
                 let lw = ui.fonts(|f| f.layout_no_wrap(label.to_string(), egui::FontId::proportional(14.0), pal.text).size().x);
-                let size = if lw > tile.x - 20.0 { (14.0 * (tile.x - 20.0) / lw).max(10.0) } else { 14.0 };
-                p.text(egui::pos2(r.center().x, r.top() + 71.0 + dy), Align2::CENTER_CENTER, *label, egui::FontId::proportional(size), pal.text);
+                let room = tile.x - 2.0 * pad_x;
+                let size = if lw > room { (14.0 * room / lw).max(10.0) } else { 14.0 };
+                p.text(egui::pos2(r.center().x, r.top() + 77.0 + dy), Align2::CENTER_CENTER, *label, egui::FontId::proportional(size), pal.text);
                 // the shortcut as keycaps; nothing when there is none
                 if !key.is_empty() {
-                    theme::keycaps(p, egui::pos2(r.center().x, r.top() + 96.0), key, &pal);
+                    theme::keycaps(p, egui::pos2(r.center().x, r.top() + 103.0), key, &pal);
                 }
                 if resp.clicked() {
                     chosen = Some(*cmd);
@@ -880,14 +871,10 @@ impl App {
                     }
                 }
             });
-            ui.add_space(12.0);
-            ui.vertical_centered(|ui| {
-                ui.label(RichText::new(t("The same commands are in the menu-bar icon.")).size(12.0).color(pal.hint));
-            });
             // language picker in the top-right corner
             // as far from the right edge as from the top one
             let margin = theme::TITLEBAR + 8.0;
-            let picker = Rect::from_min_size(egui::pos2(full.right() - margin - 122.0, full.top() + margin), vec2(122.0, 28.0));
+            let picker = Rect::from_min_size(egui::pos2(full.right() - margin - 160.0, full.top() + margin), vec2(160.0, i18n::PICKER_H));
             ui.scope_builder(egui::UiBuilder::new().max_rect(picker).layout(egui::Layout::right_to_left(egui::Align::Center)), |ui| {
                 i18n::lang_picker(ui, &mut self.settings.language, false);
             });
@@ -995,9 +982,6 @@ impl App {
         if ch.reset {
             self.toast(ctx, t("All settings have been reset"));
         }
-        if ch.about {
-            self.about = true;
-        }
         // While a hotkey is being typed in, global hotkeys must not swallow it.
         let want_pause = self.prefs.recording.is_some();
         if want_pause != self.keys_paused {
@@ -1040,31 +1024,6 @@ impl App {
                 self.handle_new_image(ctx, cut);
             }
             self.end_capture(ctx);
-        }
-    }
-
-    fn about_window(&mut self, ctx: &Context) {
-        if !self.about {
-            return;
-        }
-        let logo = self.logo(ctx);
-        let mut open = true;
-        egui::Window::new(tf("About {}", &[&APP_NAME]))
-            .collapsible(false)
-            .resizable(false)
-            .open(&mut open)
-            .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
-            .show(ctx, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add(egui::Image::new(&logo).fit_to_exact_size(vec2(72.0, 72.0)));
-                    ui.label(RichText::new(APP_NAME).size(20.0).strong());
-                    ui.label(tf("Version {}", &[&env!("CARGO_PKG_VERSION")]));
-                    ui.add_space(6.0);
-                    ui.label(t("Screenshots, annotations and screen recordings."));
-                });
-            });
-        if !open {
-            self.about = false;
         }
     }
 
@@ -1173,8 +1132,11 @@ impl eframe::App for App {
         }
         self.prefs_window(ctx);
         self.overlay_window(ctx);
-        self.about_window(ctx);
         self.toasts_ui(ctx);
+        // no click while a capture overlay is up
+        if self.overlay.is_none() {
+            crate::sound::click_feedback(ctx, self.settings.click_sound);
+        }
 
         if self.persist {
             let json = serde_json::to_string(&self.settings).unwrap_or_default();

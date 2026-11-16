@@ -59,7 +59,6 @@ pub struct Changes {
     pub fonts: bool,
     pub start_at_launch: bool,
     pub reset: bool,
-    pub about: bool,
 }
 
 pub struct SettingsUi {
@@ -69,11 +68,14 @@ pub struct SettingsUi {
     confirm_reset: bool,
     selected_font: Option<usize>,
     last_height: f32,
+    /// The "About" box is open (shown over this window).
+    about: bool,
+    logo: Option<egui::TextureHandle>,
 }
 
 impl SettingsUi {
     pub fn new() -> SettingsUi {
-        SettingsUi { open: false, tab: Tab::General, recording: None, confirm_reset: false, selected_font: None, last_height: 0.0 }
+        SettingsUi { open: false, tab: Tab::General, recording: None, confirm_reset: false, selected_font: None, last_height: 0.0, about: false, logo: None }
     }
 
     /// Draws the whole window into `ctx` (its own viewport).
@@ -133,10 +135,44 @@ impl SettingsUi {
                 });
             });
         }
+        if self.about {
+            self.about_box(ctx);
+        }
         if self.recording.is_some() {
             self.capture_hotkey(ctx, s, &mut ch);
         }
+        crate::sound::click_feedback(ctx, s.click_sound);
         ch
+    }
+
+    /// The "About" box, over the Preferences window (where its button is).
+    fn about_box(&mut self, ctx: &Context) {
+        let logo = self
+            .logo
+            .get_or_insert_with(|| {
+                let img = crate::appicon::render(256);
+                let ci = egui::ColorImage::from_rgba_unmultiplied([256, 256], img.as_raw());
+                ctx.load_texture("about-logo", ci, egui::TextureOptions::LINEAR)
+            })
+            .clone();
+        let modal = egui::Modal::new(egui::Id::new("about_box")).show(ctx, |ui| {
+            ui.set_width(280.0);
+            ui.vertical_centered(|ui| {
+                ui.add_space(4.0);
+                ui.add(egui::Image::new(&logo).fit_to_exact_size(vec2(72.0, 72.0)));
+                ui.label(RichText::new(APP_NAME).size(20.0).strong());
+                ui.label(tf("Version {}", &[&env!("CARGO_PKG_VERSION")]));
+                ui.add_space(6.0);
+                ui.label(t("Screenshots, annotations and screen recordings."));
+                ui.add_space(10.0);
+                if crate::theme::gradient_button(ui, t("OK"), vec2(96.0, 28.0)).clicked() {
+                    self.about = false;
+                }
+            });
+        });
+        if modal.should_close() {
+            self.about = false;
+        }
     }
 
     fn toolbar(&mut self, ui: &mut Ui) {
@@ -197,6 +233,11 @@ impl SettingsUi {
         row(ui, "", |ui| {
             ui.checkbox(&mut s.sound_effects, t("Sound effects"));
         });
+        row(ui, "", |ui| {
+            if ui.checkbox(&mut s.click_sound, t("Click sound")).changed() && s.click_sound {
+                crate::sound::click();
+            }
+        });
         sec = crate::theme::section_next(ui, sec);
         row(ui, t("External Image Editor:"), |ui| {
             let name = std::path::Path::new(&s.external_editor)
@@ -228,7 +269,7 @@ impl SettingsUi {
         ui.add_space(10.0);
         ui.vertical_centered(|ui| {
             if ui.button(tf("About {}", &[&APP_NAME])).clicked() {
-                ch.about = true;
+                self.about = true;
             }
         });
         crate::theme::section_end(ui, sec);
@@ -296,7 +337,6 @@ impl SettingsUi {
             ui.checkbox(&mut s.always_save_movie, t("Autosave to \"Movies\" folder"));
         });
         sec = crate::theme::section_next(ui, sec);
-        row(ui, t("Drag and drop copy:"), |ui| flags(ui, &mut s.drag_drop_flags));
         row(ui, t("Copy to clipboard:"), |ui| flags(ui, &mut s.clipboard_flags));
         sec = crate::theme::section_next(ui, sec);
         row(ui, t("Filename template:"), |ui| {
@@ -336,26 +376,24 @@ impl SettingsUi {
             }
         });
         sec = crate::theme::section_next(ui, sec);
+        // "Capture Area" goes through macOS's own selection tool, which only
+        // lets these two be set
         row(ui, t("Capture area:"), |ui| {
-            ui.checkbox(&mut s.show_magnifier, t("Show magnifier"));
-        });
-        row(ui, "", |ui| {
-            ui.checkbox(&mut s.highlight_windows, t("Highlight window under cursor"));
-        });
-        row(ui, "", |ui| {
             ui.checkbox(&mut s.window_shadow, t("Add shadow to window"));
         });
         row(ui, "", |ui| {
             ui.checkbox(&mut s.shot_on_click, t("Click to snap a window"));
+        });
+        // QuickSnap's own selection screen ("Capture Frozen Area")
+        sec = crate::theme::section_next(ui, sec);
+        row(ui, t("Frozen area:"), |ui| {
+            ui.checkbox(&mut s.show_magnifier, t("Show magnifier"));
         });
         row(ui, "", |ui| {
             ui.checkbox(&mut s.show_tip, t("Show hints"));
         });
         sec = crate::theme::section_next(ui, sec);
         row(ui, t("Status bar:"), |ui| {
-            ui.checkbox(&mut s.show_startup_tooltip, t("Show hints"));
-        });
-        row(ui, "", |ui| {
             ui.checkbox(&mut s.hide_animation, t("Hide animation"));
         });
         row(ui, "", |ui| {
@@ -394,7 +432,8 @@ impl SettingsUi {
         let rec = self.recording == Some(a);
         row(ui, a.label(), |ui| {
             let text = if rec {
-                RichText::new(t("Press hotkey with ⌘/⌃")).color(crate::theme::pal(ui.ctx()).accent)
+                // on the selected (violet) button: white, like its other states
+                RichText::new(t("Press hotkey with ⌘/⌃")).color(Color32::WHITE)
             } else {
                 match &current {
                     Some(k) => RichText::new(k.display()),
@@ -550,7 +589,14 @@ impl SettingsUi {
 fn row(ui: &mut Ui, label: &str, add: impl FnOnce(&mut Ui)) {
     ui.horizontal(|ui| {
         let (r, _) = ui.allocate_exact_size(vec2(LABEL_W, 20.0), Sense::hover());
+        add(ui);
         if !label.is_empty() {
+            // the label sits on the middle of the row's controls (taller ones
+            // like the language button too); beside a tall block, like the
+            // font list, it stays at the top
+            let row_r = ui.min_rect();
+            let y = if row_r.height() <= 48.0 { row_r.center().y } else { r.center().y };
+            let r = Rect::from_center_size(egui::pos2(r.center().x, y), r.size());
             let pal = crate::theme::pal(ui.ctx());
             let col = if ui.is_enabled() { pal.text } else { pal.hint.gamma_multiply(0.7) };
             // long translations shrink a little to stay inside the label column
@@ -558,7 +604,6 @@ fn row(ui: &mut Ui, label: &str, add: impl FnOnce(&mut Ui)) {
             let size = if w > LABEL_W - 4.0 { (13.0 * (LABEL_W - 4.0) / w).max(9.5) } else { 13.0 };
             ui.painter().text(r.right_center() - vec2(2.0, 0.0), Align2::RIGHT_CENTER, label, FontId::proportional(size), col);
         }
-        add(ui);
     });
 }
 

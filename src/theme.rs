@@ -1,5 +1,5 @@
-//! Light and dark colour sets plus the "glass" look: rounded, see-through
-//! panels with a soft sheen, floating over an "aurora" backdrop (a colour
+//! Light and dark colour sets plus the "glass" look: rounded, see-through,
+//! nearly flat panels (only a faint shadow) with a soft sheen, floating over an "aurora" backdrop (a colour
 //! gradient with glowing blobs) through which, on macOS, the desktop shows
 //! blurred.
 
@@ -79,7 +79,7 @@ pub const LIGHT: Pal = Pal {
     accent_soft: rgba(116, 82, 245, 38),
     control: rgba(60, 40, 130, 16),
     hover: rgba(60, 40, 130, 28),
-    shadow: rgba(60, 30, 120, 38),
+    shadow: rgba(60, 30, 120, 16),
     sheen: 150,
 };
 
@@ -99,7 +99,7 @@ pub const DARK: Pal = Pal {
     accent_soft: rgba(139, 108, 255, 55),
     control: rgba(255, 255, 255, 18),
     hover: rgba(255, 255, 255, 30),
-    shadow: rgba(0, 0, 0, 120),
+    shadow: rgba(0, 0, 0, 70),
     sheen: 34,
 };
 
@@ -167,15 +167,20 @@ pub fn setup_styles(ctx: &Context) {
             v.window_corner_radius = CornerRadius::same(16);
             v.menu_corner_radius = CornerRadius::same(10);
             v.window_stroke = Stroke::new(1.0_f32, p.border);
-            v.window_shadow = Shadow { offset: [0, 14], blur: 40, spread: 0, color: p.shadow };
-            v.popup_shadow = Shadow { offset: [0, 6], blur: 18, spread: 0, color: p.shadow };
+            v.window_shadow = FLAT_SHADOW.with_color(p.shadow);
+            v.popup_shadow = FLAT_SHADOW.with_color(p.shadow);
             v.selection.bg_fill = p.accent;
             v.selection.stroke = Stroke::new(1.0_f32, Color32::WHITE);
             v.hyperlink_color = p.accent;
-            v.override_text_color = Some(p.text);
+            // Text is the palette's text colour everywhere, except on selected
+            // controls (filled with the accent), where it is white: dark text
+            // on the violet would not reach a 4.5:1 contrast. (Not done with
+            // `override_text_color`, which would win over the selection's.)
+            v.override_text_color = None;
             let r = CornerRadius::same(9);
             for w in [&mut v.widgets.noninteractive, &mut v.widgets.inactive, &mut v.widgets.hovered, &mut v.widgets.active, &mut v.widgets.open] {
                 w.corner_radius = r;
+                w.fg_stroke.color = p.text;
             }
             v.widgets.inactive.weak_bg_fill = p.control;
             v.widgets.inactive.bg_fill = p.control;
@@ -183,7 +188,6 @@ pub fn setup_styles(ctx: &Context) {
             v.widgets.hovered.weak_bg_fill = p.hover;
             v.widgets.hovered.bg_fill = p.hover;
             v.widgets.hovered.bg_stroke = Stroke::new(1.0_f32, p.border);
-            v.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, p.text);
             v.widgets.active.weak_bg_fill = p.accent_soft;
             v.widgets.active.bg_fill = p.accent;
             v.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, p.border);
@@ -194,10 +198,23 @@ pub fn setup_styles(ctx: &Context) {
     }
 }
 
-/// Soft drop shadow behind a rounded rectangle.
+/// The one shadow of the (nearly flat) interface: barely there, just enough
+/// to lift a panel off what is behind it.
+const FLAT_SHADOW: Shadow = Shadow { offset: [0, 1], blur: 4, spread: 0, color: Color32::TRANSPARENT };
+
+trait WithColor {
+    fn with_color(self, c: Color32) -> Self;
+}
+
+impl WithColor for Shadow {
+    fn with_color(self, color: Color32) -> Self {
+        Shadow { color, ..self }
+    }
+}
+
+/// Faint drop shadow behind a rounded rectangle.
 pub fn shadow(p: &Painter, r: Rect, radius: u8, pal: &Pal) {
-    let sh = Shadow { offset: [0, 10], blur: 30, spread: 0, color: pal.shadow };
-    p.add(sh.as_shape(r, CornerRadius::same(radius)));
+    p.add(FLAT_SHADOW.with_color(pal.shadow).as_shape(r, CornerRadius::same(radius)));
 }
 
 /// A coloured glow (the accent) around a rounded rectangle.
@@ -205,8 +222,8 @@ pub fn glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
     if amount <= 0.01 {
         return;
     }
-    let c = mix(pal.accent, pal.accent2, 0.5).gamma_multiply(if pal.dark { 0.55 } else { 0.40 } * amount);
-    let sh = Shadow { offset: [0, 4], blur: 16, spread: 0, color: c };
+    let c = mix(pal.accent, pal.accent2, 0.5).gamma_multiply(if pal.dark { 0.25 } else { 0.15 } * amount);
+    let sh = Shadow { offset: [0, 1], blur: 6, spread: 0, color: c };
     p.add(sh.as_shape(r, CornerRadius::same(radius)));
 }
 
@@ -215,8 +232,8 @@ pub fn hover_glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
     if amount <= 0.01 {
         return;
     }
-    let c = mix(pal.hover_a, pal.hover_b, 0.5).gamma_multiply(if pal.dark { 0.55 } else { 0.45 } * amount);
-    let sh = Shadow { offset: [0, 4], blur: 18, spread: 0, color: c };
+    let c = mix(pal.hover_a, pal.hover_b, 0.5).gamma_multiply(if pal.dark { 0.25 } else { 0.18 } * amount);
+    let sh = Shadow { offset: [0, 1], blur: 6, spread: 0, color: c };
     p.add(sh.as_shape(r, CornerRadius::same(radius)));
 }
 
@@ -288,8 +305,7 @@ const GLASS_SHAPES_MAX: usize = 8;
 /// all rounded.
 pub fn glass_shapes(ctx: &Context, r: Rect, radius: u8, pal: &Pal, backdrops: &[Backdrop]) -> Vec<egui::Shape> {
     let mut v: Vec<egui::Shape> = Vec::new();
-    let sh = Shadow { offset: [0, 10], blur: 30, spread: 0, color: pal.shadow };
-    v.push(sh.as_shape(r, CornerRadius::same(radius)).into());
+    v.push(FLAT_SHADOW.with_color(pal.shadow).as_shape(r, CornerRadius::same(radius)).into());
     for b in backdrops.iter().take(GLASS_SHAPES_MAX - 4) {
         v.push(textured_rounded(r, radius as f32, b));
     }
@@ -320,8 +336,8 @@ pub fn gradient_button(ui: &mut Ui, text: &str, min: egui::Vec2) -> egui::Respon
     let r = resp.rect;
     let mut shapes: Vec<egui::Shape> = Vec::new();
     let rest = mix(pal.accent, pal.accent2, 0.5);
-    let c = mix(rest, mix(pal.hover_a, pal.hover_b, 0.5), hov).gamma_multiply(if pal.dark { 0.5 } else { 0.4 } * (0.6 + 0.4 * hov));
-    shapes.push(Shadow { offset: [0, 4], blur: 14, spread: 0, color: c }.as_shape(r, CornerRadius::same(9)).into());
+    let c = mix(rest, mix(pal.hover_a, pal.hover_b, 0.5), hov).gamma_multiply(if pal.dark { 0.25 } else { 0.15 } * (0.6 + 0.4 * hov));
+    shapes.push(FLAT_SHADOW.with_color(c).as_shape(r, CornerRadius::same(9)).into());
     let tex = accent_tex(ui.ctx(), &pal);
     shapes.push(RectShape::filled(r, 9.0, Color32::WHITE).with_texture(tex, UV_FULL).into());
     if hov > 0.0 {
