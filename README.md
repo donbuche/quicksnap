@@ -6,7 +6,7 @@
 
 **A lightweight screenshot and annotation tool for macOS, written in Rust.**
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success?logo=apple)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
@@ -55,7 +55,9 @@ then save or copy it, with no accounts, no uploads and no telemetry.
   (`%Y-%m-%d %H-%M-%S`, window title…), light/dark appearance and fonts
 - **Menu-bar app:** lives in the menu bar with no Dock icon; closing the window keeps it
   running, and every command is also in the menu-bar icon's menu
-- **Languages:** English, Spanish and Catalan, picked from the home screen or Preferences
+- **15 languages:** English, Spanish, Catalan, Galician, Basque, French, German, Italian,
+  Portuguese (Portugal and Brazil), Dutch, Polish, Japanese, Chinese (simplified) and
+  Korean, picked from the home screen or Preferences
 - **Launch at login:** optional, from Preferences → General
 - **Glass look:** see-through window with the desktop blurred behind it, colour-gradient
   backdrop and no title bar (only the window buttons)
@@ -146,7 +148,8 @@ needed), which is enough for the Mac it was built on.
 | `--write-tray-icon <file.png> <size>` | Renders the one-ink menu-bar icon to a PNG |
 
 With `--screenshot`, the environment variables `QUICKSNAP_VIEW` (`home`, `prefs-general`,
-`prefs-advanced`…), `QUICKSNAP_THEME` (`light`/`dark`), `QUICKSNAP_LANG` (`en`/`es`/`ca`)
+`prefs-advanced`…), `QUICKSNAP_THEME` (`light`/`dark`), `QUICKSNAP_LANG` (`en`, `es`, `ca`, `gl`, `eu`, `fr`, `de`, `it`, `pt`, `pt-br`, `nl`, `pl`,
+`ja`, `zh`, `ko`)
 and `QUICKSNAP_WINDOW` (e.g. `1000x620`) choose what is shown.
 
 ## Project layout
@@ -160,7 +163,7 @@ src/
 ├── shapes.rs        drawing of arrows, shapes, text, blur, crop
 ├── overlay.rs       on-screen selection overlay
 ├── hotkeys.rs       global hotkey registration
-├── i18n.rs          interface languages (EN/ES/CA) and flags
+├── i18n.rs          interface languages (15) and their flags
 ├── settings.rs      settings model and persistence
 ├── settings_ui.rs   Preferences window (General, Advanced, Appearance, Hotkeys, Fonts)
 ├── theme.rs         light/dark palettes, glass panels, gradients, vibrancy

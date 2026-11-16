@@ -157,11 +157,14 @@ impl SettingsUi {
             }
             let col = if sel { pal.accent } else { pal.hint };
             icons::paint(p, Rect::from_center_size(egui::pos2(r.center().x, r.top() + 19.0), vec2(26.0, 26.0)), t.icon(), col);
+            // long names (in some languages) shrink to fit their tab
+            let lw = ui.fonts(|f| f.layout_no_wrap(t.label().to_string(), FontId::proportional(11.5), pal.text).size().x);
+            let size = if lw > r.width() - 6.0 { (11.5 * (r.width() - 6.0) / lw).max(9.0) } else { 11.5 };
             p.text(
                 egui::pos2(r.center().x, r.bottom() - 9.0),
                 Align2::CENTER_CENTER,
                 t.label(),
-                FontId::proportional(11.5),
+                FontId::proportional(size),
                 if sel { pal.text } else { pal.hint },
             );
             if resp.clicked() {

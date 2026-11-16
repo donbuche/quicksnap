@@ -2,6 +2,21 @@
 
 All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://semver.org).
 
+## [0.3.0] - 2026-11-16
+
+### Added
+- Interface in 15 languages: French, German, Italian, Portuguese (Portugal and Brazil),
+  Dutch, Polish, Galician, Basque, Japanese, Chinese (simplified) and Korean join English,
+  Spanish and Catalan, each with its flag in the language picker
+- Chinese, Japanese and Korean use macOS's own fonts for them (Hiragino Sans, Hiragino
+  Sans GB, Apple SD Gothic Neo), loaded only when that language is chosen
+
+### Changed
+- Language menus list the languages by their name in the interface language, in that
+  language's alphabetical order, with each language's own name in grey
+- Home screen tiles a little wider, so labels fit in every language
+- Preferences tab names shrink to fit when a translation is long
+
 ## [0.2.0] - 2026-11-16
 
 ### Added
@@ -27,5 +42,6 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 First version: area, frozen-area, full-screen and delayed captures, screen recording,
 annotation editor, menu-bar app, global hotkeys and an English/Spanish/Catalan interface.
 
+[0.3.0]: https://github.com/donbuche/quicksnap/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/donbuche/quicksnap/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/donbuche/quicksnap/releases/tag/v0.1.0

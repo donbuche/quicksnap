@@ -94,13 +94,33 @@ pub struct App {
     /// The language the menu-bar menu was built in.
     tray_lang: Option<Lang>,
     logo: Option<egui::TextureHandle>,
+    /// The language whose Chinese/Japanese/Korean font is loaded, if any.
+    cjk_font_for: Option<Lang>,
 }
 
 fn data_dir() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join(APP_NAME))
 }
 
-fn install_fonts(ctx: &Context, font: &AnnotFont) {
+/// System fonts for a language whose script the UI font lacks (Chinese,
+/// Japanese, Korean), first one first: path and face index in the collection.
+/// Only the current language's are loaded (they are large); Arial Unicode
+/// covers the rest. Japanese and Korean also get the Chinese font, for the
+/// simplified characters in "简体中文" in the language menu, which their own
+/// fonts lack (one character from another font looked out of place).
+fn cjk_fonts(lang: Lang) -> &'static [(&'static str, u32)] {
+    const JA: (&str, u32) = ("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc", 0);
+    const ZH: (&str, u32) = ("/System/Library/Fonts/Hiragino Sans GB.ttc", 0);
+    const KO: (&str, u32) = ("/System/Library/Fonts/AppleSDGothicNeo.ttc", 0);
+    match lang {
+        Lang::Ja => &[JA, ZH],
+        Lang::Zh => &[ZH],
+        Lang::Ko => &[KO, ZH],
+        _ => &[],
+    }
+}
+
+fn install_fonts(ctx: &Context, font: &AnnotFont, lang: Lang) {
     let mut defs = egui::FontDefinitions::default();
     for path in ["/System/Library/Fonts/Helvetica.ttc", "/System/Library/Fonts/HelveticaNeue.ttc"] {
         if let Ok(bytes) = std::fs::read(path) {
@@ -112,6 +132,20 @@ fn install_fonts(ctx: &Context, font: &AnnotFont) {
                 f.insert(0, "ui".into());
             }
             break;
+        }
+    }
+    // Chinese, Japanese or Korean UI text in that language's own font, ahead
+    // of the generic fallbacks below.
+    for (i, (path, index)) in cjk_fonts(lang).iter().enumerate() {
+        if let Ok(bytes) = std::fs::read(path) {
+            let name = format!("cjk{i}");
+            defs.font_data
+                .insert(name.clone(), Arc::new(egui::FontData { font: std::borrow::Cow::Owned(bytes), index: *index, tweak: Default::default() }));
+            for fam in [FontFamily::Proportional, FontFamily::Monospace] {
+                if let Some(f) = defs.families.get_mut(&fam) {
+                    f.push(name.clone());
+                }
+            }
         }
     }
     // Key symbols (⌥ ⌃ ⇧ ✕) are missing from Helvetica, so add symbol fonts as fallbacks.
@@ -207,7 +241,8 @@ impl App {
         let persist = screenshot.is_none();
         let settings = if persist { Settings::load() } else { Settings::default() };
         let font = AnnotFont::load(settings.main_font.as_deref());
-        install_fonts(&cc.egui_ctx, &font);
+        install_fonts(&cc.egui_ctx, &font, settings.language);
+        let settings_lang = Some(settings.language);
         theme::setup_styles(&cc.egui_ctx);
         // see-through window with the desktop blurred behind it (the window
         // was created transparent for this in main.rs); screenshots for the
@@ -253,11 +288,24 @@ impl App {
             applied_theme: None,
             tray_lang: None,
             logo: None,
+            cjk_font_for: settings_lang.filter(|l| l.is_cjk()),
         };
         if let Ok(l) = std::env::var("QUICKSNAP_LANG") {
             app.settings.language = match l.as_str() {
                 "es" => Lang::Es,
                 "ca" => Lang::Ca,
+                "fr" => Lang::Fr,
+                "de" => Lang::De,
+                "pt" => Lang::Pt,
+                "it" => Lang::It,
+                "gl" => Lang::Gl,
+                "eu" => Lang::Eu,
+                "pt-br" | "ptbr" | "br" => Lang::PtBr,
+                "nl" => Lang::Nl,
+                "pl" => Lang::Pl,
+                "ja" => Lang::Ja,
+                "zh" => Lang::Zh,
+                "ko" => Lang::Ko,
                 _ => Lang::En,
             };
         }
@@ -760,7 +808,8 @@ impl App {
                 ),
                 (Icon::Clipboard, t("Open from Clipboard"), hk(Action::OpenFromClipboard), Command::OpenClipboard),
             ];
-            let tile = vec2(180.0, 116.0);
+            // wide enough for most labels in every language (longer ones shrink)
+            let tile = vec2(196.0, 116.0);
             let gap = 16.0;
             let cols = 3usize;
             let grid_w = tile.x * cols as f32 + gap * (cols as f32 - 1.0);
@@ -936,7 +985,7 @@ impl App {
         }
         if ch.fonts {
             self.font = AnnotFont::load(self.settings.main_font.as_deref());
-            install_fonts(ctx, &self.font);
+            install_fonts(ctx, &self.font, self.settings.language);
         }
         if ch.start_at_launch || ch.reset {
             if let Err(e) = settings_ui::apply_launch_at_login(self.settings.start_at_launch) {
@@ -1068,6 +1117,12 @@ impl eframe::App for App {
             self.applied_theme = Some(self.settings.theme);
         }
         i18n::set(self.settings.language);
+        // switching to or from Chinese, Japanese or Korean changes the font
+        let cjk = Some(self.settings.language).filter(|l| l.is_cjk());
+        if cjk != self.cjk_font_for {
+            install_fonts(ctx, &self.font, self.settings.language);
+            self.cjk_font_for = cjk;
+        }
         self.start_services(ctx);
         // the menu-bar menu is native: rebuild it when the language changes
         if self.tray.is_some() && self.tray_lang != Some(self.settings.language) {
