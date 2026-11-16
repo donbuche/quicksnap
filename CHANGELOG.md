@@ -2,12 +2,17 @@
 
 All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [0.3.1] - 2026-11-16
+
+No changes in the app itself; this version is about how it is released.
 
 ### Added
 - Releases are published automatically: every push to `main` with a new version builds
   the DMG on GitHub Actions and creates the GitHub release, with notes from this file
 - The latest DMG is always at `releases/latest/download/QuickSnap.dmg`
+
+### Changed
+- README: new home screenshot with the current glass look, and a direct download link
 
 ## [0.3.0] - 2026-11-16
 
