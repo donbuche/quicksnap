@@ -46,6 +46,9 @@ enum Command {
 /// really off screen when the picture is taken.
 const HIDE_BEFORE_CAPTURE: std::time::Duration = std::time::Duration::from_millis(250);
 
+/// Room above a home tile's icon and below its shortcut keycaps.
+const TILE_PAD: f32 = 20.0;
+
 /// How long a capture of a rectangle waits for the area selector's windows
 /// to leave the screen.
 const SELECTOR_GONE: std::time::Duration = std::time::Duration::from_millis(120);
@@ -800,7 +803,9 @@ impl App {
         egui::CentralPanel::default().frame(Frame::new()).show(ctx, |ui| {
             let full = ui.max_rect();
             theme::background(ui.painter(), full, &pal, true);
-            ui.add_space((full.height() * 0.09).max(16.0));
+            // 9 % of the height above the logo, less in a short window so the
+            // bottom buttons still fit (the rest of the screen is ~610 pt)
+            ui.add_space(((full.height() - 610.0) * 0.5).clamp(10.0, (full.height() * 0.09).max(16.0)));
             ui.vertical_centered(|ui| {
                 let (r, _) = ui.allocate_exact_size(vec2(96.0, 96.0), Sense::hover());
                 theme::shadow(ui.painter(), r.shrink(6.0), 44, &pal);
@@ -825,7 +830,7 @@ impl App {
                 (Icon::Clipboard, t("Open from Clipboard"), hk(Action::OpenFromClipboard), Command::OpenClipboard),
             ];
             // wide enough for most labels in every language (longer ones shrink)
-            let tile = vec2(224.0, 124.0);
+            let tile = vec2(224.0, 148.0);
             // room kept free between a tile's label and its left/right edges
             let pad_x = 22.0;
             let gap = 16.0;
@@ -842,18 +847,16 @@ impl App {
                 // hover, keyboard focus and press all light the tile up
                 let lit = resp.hovered() || resp.has_focus() || resp.is_pointer_button_down_on();
                 let hov = theme::hover_amount(ctx, resp.id, lit);
-                theme::hover_glow(ui.painter(), r, 20, &pal, hov);
-                theme::glass(ui.painter(), r, 20, &pal, &[]);
                 let p = ui.painter();
-                // under the pointer the tile lightens behind a see-through
-                // veil, inside its hairline border
-                p.rect_filled(r.shrink(1.0), 19.0, theme::hover_veil(&pal, hov));
+                theme::flat_button(p, r, 20, &pal, hov, resp.is_pointer_button_down_on(), 0.18);
                 // bare one-ink icons: accent at rest, turquoise when the tile
                 // is hovered, focused or pressed (red while recording)
                 let recording = *cmd == Command::RecordVideo && self.recorder.is_some();
-                // without a shortcut the icon and name sit a little lower, centred
-                let dy = if key.is_empty() { 6.0 } else { 0.0 };
-                let icon_r = Rect::from_center_size(egui::pos2(r.center().x, r.top() + 34.0 + dy), vec2(36.0, 36.0));
+                // icon and name sit at the same height in every tile, so they
+                // line up across a row; a tile without a shortcut keeps its
+                // keycap row empty
+                let dy = 0.0;
+                let icon_r = Rect::from_center_size(egui::pos2(r.center().x, r.top() + TILE_PAD + 18.0 + dy), vec2(36.0, 36.0));
                 let rest_ic = if pal.dark { Color32::from_rgb(0xc9, 0xbb, 0xff) } else { pal.accent };
                 let lit_ic = if pal.dark { pal.hover_b } else { pal.hover_a };
                 let ic = if recording { Color32::from_rgb(0xff, 0x3b, 0x30) } else { theme::mix(rest_ic, lit_ic, hov) };
@@ -862,30 +865,48 @@ impl App {
                 let lw = ui.fonts(|f| f.layout_no_wrap(label.to_string(), egui::FontId::proportional(14.0), pal.text).size().x);
                 let room = tile.x - 2.0 * pad_x;
                 let size = if lw > room { (14.0 * room / lw).max(10.0) } else { 14.0 };
-                p.text(egui::pos2(r.center().x, r.top() + 77.0 + dy), Align2::CENTER_CENTER, *label, egui::FontId::proportional(size), pal.text);
+                p.text(egui::pos2(r.center().x, r.top() + 84.0 + dy), Align2::CENTER_CENTER, *label, egui::FontId::proportional(size), pal.text);
                 // the shortcut as keycaps; nothing when there is none
                 if !key.is_empty() {
-                    theme::keycaps(p, egui::pos2(r.center().x, r.top() + 103.0), key, &pal);
+                    theme::keycaps(p, egui::pos2(r.center().x, r.bottom() - TILE_PAD - 11.0), key, &pal);
                 }
                 if resp.clicked() {
                     chosen = Some(*cmd);
                 }
             }
             let rows = tiles.len().div_ceil(cols) as f32;
-            ui.allocate_exact_size(vec2(0.0, rows * (tile.y + gap) + 10.0), Sense::hover());
+            // the secondary buttons stand well apart from the capture tiles
+            ui.allocate_exact_size(vec2(0.0, rows * (tile.y + gap) - gap + 64.0), Sense::hover());
+            let actions = [
+                (Icon::Folder, t("Open…"), Command::Open),
+                (Icon::Image, t("Open Latest Image"), Command::OpenLatest),
+                (Icon::Gear, t("Preferences…"), Command::Preferences),
+            ];
+            let font = egui::FontId::proportional(14.0);
+            let (icon_w, icon_gap, pad) = (17.0, 8.0, 18.0);
+            // all three as wide as the longest label needs
+            let text_w = |s: &str| ctx.fonts(|f| f.layout_no_wrap(s.to_string(), font.clone(), pal.text).size().x);
+            let bw = actions.iter().map(|a| text_w(a.1)).fold(0.0_f32, f32::max).max(110.0) + icon_w + icon_gap + 2.0 * pad;
+            let bgap = 12.0;
             ui.horizontal(|ui| {
-                let w = 3.0 * 160.0 + 16.0;
+                ui.spacing_mut().item_spacing.x = bgap;
+                let w = 3.0 * bw + 2.0 * bgap;
                 ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
-                for (label, cmd) in [(t("Open…"), Command::Open), (t("Open Latest Image"), Command::OpenLatest), (t("Preferences…"), Command::Preferences)] {
-                    let (r, resp) = ui.allocate_exact_size(vec2(160.0, 32.0), Sense::click());
+                for (icon, label, cmd) in actions {
+                    let (r, resp) = ui.allocate_exact_size(vec2(bw, 40.0), Sense::click());
                     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
-                    let hov = theme::hover_amount(ctx, resp.id, resp.hovered());
+                    let lit = resp.hovered() || resp.has_focus() || resp.is_pointer_button_down_on();
+                    let hov = theme::hover_amount(ctx, resp.id, lit);
                     let p = ui.painter();
-                    theme::hover_glow(p, r, 11, &pal, hov);
-                    theme::glass(p, r, 11, &pal, &[]);
-                    p.rect_filled(r.shrink(1.0), 10.0, theme::hover_veil(&pal, hov));
-                    theme::hover_fill(p, r, 11.0, &pal, 0.18 * hov);
-                    p.text(r.center(), Align2::CENTER_CENTER, label, egui::FontId::proportional(14.0), pal.text);
+                    theme::flat_button(p, r, 11, &pal, hov, resp.is_pointer_button_down_on(), 0.18);
+                    // icon and label centred together
+                    let group = icon_w + icon_gap + text_w(label);
+                    let x0 = r.center().x - group / 2.0;
+                    let rest_ic = if pal.dark { Color32::from_rgb(0xc9, 0xbb, 0xff) } else { pal.accent };
+                    let lit_ic = if pal.dark { pal.hover_b } else { pal.hover_a };
+                    let ir = Rect::from_center_size(egui::pos2(x0 + icon_w / 2.0, r.center().y), vec2(icon_w, icon_w));
+                    icons::paint(p, ir, icon, theme::mix(rest_ic, lit_ic, hov));
+                    p.text(egui::pos2(x0 + icon_w + icon_gap, r.center().y), Align2::LEFT_CENTER, label, font.clone(), pal.text);
                     if resp.clicked() {
                         chosen = Some(cmd);
                     }

@@ -39,6 +39,8 @@ pub enum Icon {
     OpenExternal,
     /// A sheet with a drop shadow (the editor's Shadow toggle).
     Shadow,
+    /// A classic cog wheel (Preferences).
+    Gear,
 }
 
 fn p(r: Rect, x: f32, y: f32) -> Pos2 {
@@ -257,6 +259,25 @@ pub fn paint(painter: &Painter, r: Rect, icon: Icon, c: Color32) {
             painter.rect_filled(Rect::from_min_max(p(r, 0.7, 0.3), p(r, 0.88, 0.88)), 1.5, shade);
             painter.rect_filled(Rect::from_min_max(p(r, 0.3, 0.7), p(r, 0.7, 0.88)), 1.5, shade);
             painter.rect_stroke(Rect::from_min_max(p(r, 0.12, 0.12), p(r, 0.7, 0.7)), 2.0, s, egui::StrokeKind::Middle);
+        }
+        Icon::Gear => {
+            // a ring with eight square teeth and a hole in the middle
+            let ctr = r.center();
+            let u = r.width();
+            let (ring, tip, half) = (0.29 * u, 0.44 * u, 0.075 * u);
+            for i in 0..8 {
+                let a = i as f32 * std::f32::consts::FRAC_PI_4;
+                let (d, n) = (vec2(a.cos(), a.sin()), vec2(-a.sin(), a.cos()));
+                let base = ctr + d * (ring - w * 0.5);
+                let top = ctr + d * tip;
+                painter.add(Shape::convex_polygon(
+                    vec![base - n * half, top - n * half * 0.8, top + n * half * 0.8, base + n * half],
+                    c,
+                    Stroke::NONE,
+                ));
+            }
+            painter.circle_stroke(ctr, ring, s);
+            painter.circle_stroke(ctr, 0.12 * u, s);
         }
         Icon::Image => {
             painter.rect_stroke(Rect::from_min_max(p(r, 0.12, 0.2), p(r, 0.88, 0.8)), 2.0, s, egui::StrokeKind::Middle);

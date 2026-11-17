@@ -621,15 +621,12 @@ pub fn lang_picker(ui: &mut egui::Ui, lang: &mut Lang, compact: bool) -> bool {
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let vis = ui.style().interact(&resp);
     let pal = crate::theme::pal(ui.ctx());
-    // styled like the app's other buttons: a glass surface that lightens and
-    // takes a turquoise tint under the pointer
+    // flat, like the home screen's other buttons: it lightens and lifts
+    // under the pointer, with keyboard focus and while its menu is open
     let lit = resp.hovered() || resp.has_focus() || egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
     let hov = crate::theme::hover_amount(ui.ctx(), resp.id, lit);
     let p = ui.painter();
-    crate::theme::hover_glow(p, r, 10, &pal, hov);
-    crate::theme::glass(p, r, 10, &pal, &[]);
-    p.rect_filled(r.shrink(1.0), 9.0, crate::theme::hover_veil(&pal, hov));
-    crate::theme::hover_fill(p, r, 10.0, &pal, 0.18 * hov);
+    crate::theme::flat_button(p, r, 10, &pal, hov, resp.is_pointer_button_down_on(), 0.18);
     let fr = flag_rect(ui, r.min.x + PICKER_PAD, r.center().y);
     paint_flag(p, fr, *lang);
     p.text(pos2(fr.max.x + 8.0, r.center().y), Align2::LEFT_CENTER, label, font.clone(), vis.text_color());

@@ -16,6 +16,15 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 - Editor: the drop shadow around the picture is tighter and lighter, just enough to show
   where a white screenshot ends once pasted into an email or a document
 - Editor: the Shadow toggle has an icon
+- Home screen: flat capture tiles, bottom buttons and language picker (no sheen along
+  the top) on a dark navy shadow instead of the turquoise glow. The shadow lifts wider
+  and darker on hover and keyboard focus and tightens when pressed
+- Home screen: Open…, Open Latest Image and Preferences… have icons (a cog wheel for
+  Preferences), are a little taller and stand further apart from the capture tiles
+- Home screen: the capture tiles are taller, with the same room above the icon as below
+  the shortcut and more space between name and shortcut; icon and name sit at the same
+  height whether a tile has a shortcut or not, and all tiles take the same turquoise
+  tint on hover as the other buttons. The main window's minimum height grows to 690 pt
 - Preferences → Appearance: "Show hints" moved to the Capture area group, since it now
   applies to both selection screens; the magnifier stays with the frozen area
 

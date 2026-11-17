@@ -227,14 +227,43 @@ pub fn glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
     p.add(sh.as_shape(r, CornerRadius::same(radius)));
 }
 
-/// A turquoise glow (the hover colour) around a rounded rectangle.
-pub fn hover_glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
-    if amount <= 0.01 {
-        return;
+/// A flat control of the home screen (capture tiles, bottom buttons, the
+/// language picker): a plain see-through fill and a hairline border, with no
+/// sheen, lifted off the background by a dark navy shadow. Hover and keyboard
+/// focus (`amount` 0–1) lighten the fill (plus a turquoise tint of `tint`)
+/// and lift it higher with a wider, darker shadow; a press presses it down
+/// to a tight one.
+pub fn flat_button(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32, pressed: bool, tint: f32) {
+    let k = amount.clamp(0.0, 1.0);
+    let cr = CornerRadius::same(radius);
+    // (offset y, blur, spread, alpha) at rest, lifted and pressed
+    let (rest, lift, down) = if pal.dark {
+        ((2.0, 8.0, 0.0, 120.0), (6.0, 18.0, 1.0, 175.0), (1.0, 3.0, 0.0, 190.0))
+    } else {
+        ((2.0, 8.0, 0.0, 34.0), (6.0, 18.0, 1.0, 60.0), (1.0, 3.0, 0.0, 70.0))
+    };
+    let lerp = |a: f32, b: f32| a + (b - a) * k;
+    let (dy, blur, spread, alpha) = if pressed {
+        down
+    } else {
+        (lerp(rest.0, lift.0), lerp(rest.1, lift.1), lerp(rest.2, lift.2), lerp(rest.3, lift.3))
+    };
+    let navy = if pal.dark { (6, 5, 28) } else { (28, 22, 78) };
+    let sh = Shadow {
+        offset: [0, dy.round() as i8],
+        blur: blur.round() as u8,
+        spread: spread.round() as u8,
+        color: rgba(navy.0, navy.1, navy.2, alpha.round() as u8),
+    };
+    p.add(sh.as_shape(r, cr));
+    p.rect_filled(r, cr, pal.glass);
+    // under the pointer the button lightens behind a see-through veil
+    let veil = if pal.dark { 30.0 } else { 150.0 } * k;
+    if veil > 0.5 {
+        p.rect_filled(r.shrink(1.0), (radius as f32 - 1.0).max(0.0), Color32::from_white_alpha(veil.round() as u8));
     }
-    let c = mix(pal.hover_a, pal.hover_b, 0.5).gamma_multiply(if pal.dark { 0.25 } else { 0.18 } * amount);
-    let sh = Shadow { offset: [0, 1], blur: 6, spread: 0, color: c };
-    p.add(sh.as_shape(r, CornerRadius::same(radius)));
+    hover_fill(p, r, radius as f32, pal, tint * k);
+    p.rect_stroke(r, cr, Stroke::new(1.0_f32, pal.border), StrokeKind::Inside);
 }
 
 /// A rounded rectangle filled with the turquoise hover gradient.
@@ -313,12 +342,6 @@ pub fn glass_shapes(ctx: &Context, r: Rect, radius: u8, pal: &Pal, backdrops: &[
     v.push(sheen_shape(ctx, r, radius, pal));
     v.push(RectShape::stroke(r, CornerRadius::same(radius), Stroke::new(1.0_f32, pal.border), StrokeKind::Inside).into());
     v
-}
-
-pub fn glass(p: &Painter, r: Rect, radius: u8, pal: &Pal, backdrops: &[Backdrop]) {
-    for s in glass_shapes(p.ctx(), r, radius, pal, backdrops) {
-        p.add(s);
-    }
 }
 
 /// A button filled with the accent gradient and white text.
@@ -585,13 +608,6 @@ pub fn section_next(ui: &mut Ui, s: Section) -> Section {
 pub const HOVER_FADE_SECONDS: f32 = 0.18;
 pub fn hover_amount(ctx: &Context, id: egui::Id, hovered: bool) -> f32 {
     ctx.animate_bool_with_time(id.with("hover_fade"), hovered, HOVER_FADE_SECONDS)
-}
-
-/// A see-through white veil laid over a surface under the pointer: it makes
-/// the surface lighter while letting what is behind show through.
-pub fn hover_veil(pal: &Pal, amount: f32) -> Color32 {
-    let max = if pal.dark { 30.0 } else { 150.0 };
-    Color32::from_white_alpha((max * amount.clamp(0.0, 1.0)).round() as u8)
 }
 
 /// Mixes two colours (amount 0 = `a`, 1 = `b`).

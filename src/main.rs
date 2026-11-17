@@ -62,7 +62,7 @@ fn main() -> eframe::Result<()> {
             // wide enough for the editor's three top bars in one row, in
             // every language (screenshots set their own size: the
             // Preferences ones are narrower)
-            .with_min_inner_size(if screenshot.is_some() { [0.0, 0.0] } else { [1180.0, 640.0] })
+            .with_min_inner_size(if screenshot.is_some() { [0.0, 0.0] } else { [1180.0, 690.0] })
             .with_icon(std::sync::Arc::new(appicon::icon_data(256)))
             // see-through, for the frosted-glass look (see theme::apply_vibrancy)
             .with_transparent(cfg!(target_os = "macos") && screenshot.is_none())
