@@ -856,7 +856,7 @@ impl App {
                 let hov = theme::hover_amount(ctx, resp.id, lit);
                 let p = ui.painter();
                 theme::flat_button(p, r, 20, &pal, hov, resp.is_pointer_button_down_on(), 0.18);
-                // bare one-ink icons: accent at rest, turquoise when the tile
+                // bare one-ink icons: accent at rest, lighter violet when the tile
                 // is hovered, focused or pressed (red while recording)
                 let recording = *cmd == Command::RecordVideo && self.recorder.is_some();
                 // icon and name sit at the same height in every tile, so they

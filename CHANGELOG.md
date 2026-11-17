@@ -10,6 +10,9 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
   to the pointer its own way, with its own strength, direction and delay, and some
   drift away from it. They glide smoothly (drawn as meshes at about 30 frames a second
   instead of a picture redrawn a few times a second)
+- Hover is violet instead of turquoise everywhere (home screen, language picker, editor
+  tools, the Save button): a light tint of the accent, while selected things stay solid
+  violet, so the app uses one accent colour
 - The background's diagonal gradient is clearer in both themes: violet at the top left
   to blue at the bottom right (dark `#24124A` → `#061C3C`, light `#EEE3FF` → `#DCEEFF`)
 
