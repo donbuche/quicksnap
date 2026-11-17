@@ -7,7 +7,7 @@
 # `cargo build --release`; target/ is ignored, so it survives `git switch`).
 # Writes assets/shots/<lang>/<view>-<theme>.jpg, rendered at 2x
 # (QUICKSNAP_ZOOM=2) so they are Retina-sharp on any display.
-# Home and editor: a 1180x645-point window; Preferences: 500 points wide
+# Home and editor: a 1180x700-point window; Preferences: 500 points wide
 # (the app sets the height to fit each tab).
 set -euo pipefail
 
@@ -27,7 +27,7 @@ for lang in $LANGS; do
     for theme in dark light; do
       png="$TMP/$view-$theme.png"
       case "$view" in
-        home|editor) win=1180x645 ;;
+        home|editor) win=1180x700 ;;
         *) win=500x645 ;;
       esac
       if [ "$view" = editor ]; then
