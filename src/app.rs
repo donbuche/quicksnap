@@ -1211,6 +1211,8 @@ impl eframe::App for App {
                     "fonts" => settings_ui::Tab::Fonts,
                     _ => settings_ui::Tab::General,
                 };
+                // prefs-about: the About box over the General tab
+                self.prefs.about = tab == "about";
                 let _ = self.prefs.show(ctx, &mut self.settings);
                 self.screenshot_step(ctx);
                 return;
