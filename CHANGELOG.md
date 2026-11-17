@@ -13,6 +13,8 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 - Hover is violet instead of turquoise everywhere (home screen, language picker, editor
   tools, the Save button): a light tint of the accent, while selected things stay solid
   violet, so the app uses one accent colour
+- About box: more room inside (wider margins, more space between the lines) and an
+  opaque background, so the settings behind it no longer show through the text
 - The background's diagonal gradient is clearer in both themes: violet at the top left
   to blue at the bottom right (dark `#24124A` → `#061C3C`, light `#EEE3FF` → `#DCEEFF`)
 
