@@ -6,7 +6,7 @@
 
 **A lightweight screenshot and annotation tool for macOS, written in Rust.**
 
-![Version](https://img.shields.io/badge/version-0.5.1-blue)
+![Version](https://img.shields.io/badge/version-0.5.2-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success?logo=apple)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
@@ -92,11 +92,13 @@ then save or copy it, with no accounts, no uploads and no telemetry.
 > QuickSnap is **not notarized by Apple yet**. The first time you open it, macOS will
 > say it cannot verify the app. Go to **System Settings → Privacy & Security**, scroll
 > down and click **Open Anyway**. You only need to do this once per version.
+> Step by step, with pictures and in 15 languages:
+> [**How to open QuickSnap the first time**](https://donbuche.github.io/quicksnap/install/).
 
 > [!NOTE]
 > To take screenshots, QuickSnap needs the **Screen Recording** permission
-> (**System Settings → Privacy & Security → Screen Recording**). Quit and reopen the app
-> after granting it.
+> (**System Settings → Privacy & Security → Screen & System Audio Recording**). Quit and
+> reopen the app after granting it.
 
 Release builds are currently for **Apple Silicon** Macs. On Intel Macs, build from source.
 
