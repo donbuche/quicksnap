@@ -13,7 +13,12 @@ Template syntax
   {{$name}}  a value computed here (paths, hreflang tags, JSON-LD...)
   [[token]]  expanded inside texts and template: [[cmd]], [[keys:5]],
              [[hotkey_heading]], [[releases_link]], [[egui]], [[tinyskia]],
-             [[claude]]
+             [[claude]], and [[mac:name]]: the exact words macOS shows in
+             that language (button and pane names, from apple-strings.json)
+
+Pages: the landing page (template.html) and the installation guide
+(install.html, at <prefix>install/) in every language, and the privacy
+policy (privacy.html) in English.
 
 The build fails if a language file is missing a key, has an extra one, or if
 anything is left unresolved, so no page silently falls back to English.
@@ -54,6 +59,11 @@ LANGS = [
     ("zh",    "zh/",    "zh-Hans", "zh_CN",   "简体中文",             "cn", ["zh-cn", "zh-sg", "zh-hans", "zh-hans-cn", "zh"], "zh"),
     ("ko",    "ko/",    "ko",      "ko_KR",   "한국어",              "kr", ["ko"],                "ko"),
 ]
+# What macOS itself calls things, per site language, taken from the system's
+# own translation tables (macOS has no Galician or Basque: those pages use
+# the Spanish names). "%@" is the app's name.
+APPLE = json.loads((SRC / "apple-strings.json").read_text("utf-8"))
+
 LANGS = [dict(zip(("code", "prefix", "hreflang", "og_locale", "name", "flag", "match", "base"), l)) for l in LANGS]
 
 
@@ -150,13 +160,16 @@ def fix_amp(s):
     return re.sub(r"&(?!#?\w+;)", "&amp;", s)
 
 
-def rel(from_lang, to_lang):
-    root = "../" if from_lang["prefix"] else ""
-    return (root + to_lang["prefix"]) or "./"
+def rel(from_lang, to_lang, sub=""):
+    """Link from a page of from_lang to the same page (sub, e.g. "install/")
+    of to_lang."""
+    root = "../" * (from_lang["prefix"] + sub).count("/")
+    return (root + to_lang["prefix"] + sub) or "./"
 
 
 def expand_tokens(text, t, plain_mode=False):
     opt, cmd = t["key_option"], t["key_command"]
+    mac = APPLE[t["_code"]]
 
     def keys(n):
         label = f"{opt} + {cmd} + {n}"
@@ -182,6 +195,12 @@ def expand_tokens(text, t, plain_mode=False):
         tok = m.group(1)
         if tok.startswith("keys:"):
             return keys(tok[5:])
+        if tok.startswith("mac:"):
+            if tok[4:] not in mac:
+                sys.exit(f"Unknown macOS string [[{tok}]]")
+            # without its final full stop: it is quoted inside our own sentence
+            words = mac[tok[4:]].replace("%@", "QuickSnap").rstrip(".。")
+            return words if plain_mode else esc(words)
         if tok not in table:
             sys.exit(f"Unknown token [[{tok}]]")
         return table[tok]
@@ -211,6 +230,7 @@ def load_texts():
             tokens = sorted(re.findall(r"\[\[[\w:]+\]\]", v))
             if tokens != tokens_ref:
                 problems.append(f"{path.name}: {k} has tokens {tokens}, expected {tokens_ref}")
+        data["_code"] = lang["code"]
         texts[lang["code"]] = data
     if problems:
         sys.exit("Translation problems:\n  " + "\n  ".join(problems))
@@ -243,27 +263,28 @@ def jsonld(lang, t, canonical):
     return json.dumps(data, ensure_ascii=False, indent=2).replace("</", "<\\/")
 
 
-def render(template, lang, texts):
+def render(template, lang, texts, sub=""):
+    """sub: "" for the landing page, "install/" for the guide."""
     t = texts[lang["code"]]
-    canonical = BASE + lang["prefix"]
-    root = "../" if lang["prefix"] else ""
+    canonical = BASE + lang["prefix"] + sub
+    root = "../" * (lang["prefix"] + sub).count("/")
 
-    alternates = [f'<link rel="alternate" hreflang="{l["hreflang"]}" href="{BASE}{l["prefix"]}">' for l in LANGS]
-    alternates.append(f'<link rel="alternate" hreflang="x-default" href="{BASE}">')
+    alternates = [f'<link rel="alternate" hreflang="{l["hreflang"]}" href="{BASE}{l["prefix"]}{sub}">' for l in LANGS]
+    alternates.append(f'<link rel="alternate" hreflang="x-default" href="{BASE}{sub}">')
     og_alt = [f'<meta property="og:locale:alternate" content="{l["og_locale"]}">' for l in LANGS if l is not lang]
 
     def lang_link(l, cls_flag=True, indent="        ", via="menu"):
         cur = ' aria-current="page"' if l is lang else ""
         flag = (f'<svg class="flag" aria-hidden="true" focusable="false"><use href="#flag-{l["flag"]}"/></svg>'
                 if cls_flag else "")
-        return (f'{indent}<li><a href="{rel(lang, l)}" hreflang="{l["hreflang"]}" lang="{l["hreflang"]}" '
+        return (f'{indent}<li><a href="{rel(lang, l, sub)}" hreflang="{l["hreflang"]}" lang="{l["hreflang"]}" '
                 f'data-lang="{l["code"]}" data-via="{via}"{cur}>{flag}{esc(l["name"])}</a></li>')
 
     banner = []
     for l in LANGS:
         tl = texts[l["code"]]
         banner.append({
-            "code": l["code"], "lang": l["hreflang"], "flag": l["flag"], "href": rel(lang, l),
+            "code": l["code"], "lang": l["hreflang"], "flag": l["flag"], "href": rel(lang, l, sub),
             "match": l["match"], "base": l["base"],
             "text": esc(plain(tl["banner_text"])), "go": esc(plain(tl["banner_go"])),
             "dismiss": esc(plain(tl["banner_dismiss"])),
@@ -279,7 +300,8 @@ def render(template, lang, texts):
         "og_image": f"{BASE}assets/shots/{lang['code']}/home-dark.jpg",
         "jsonld": jsonld(lang, t, canonical),
         "root": root,
-        "home": "./",
+        "home": "../" if sub else "./",
+        "guide": root + lang["prefix"] + "install/",
         "shots": f"{root}assets/shots/{lang['code']}/",
         "version": VERSION,
         "ga": GA_ID,
@@ -325,6 +347,10 @@ def sitemap():
     links += f'\n    <xhtml:link rel="alternate" hreflang="x-default" href="{BASE}"/>'
     urls = "".join(
         f'\n  <url>\n    <loc>{BASE}{l["prefix"]}</loc>\n    <lastmod>{today}</lastmod>{links}\n  </url>' for l in LANGS)
+    links = "".join(f'\n    <xhtml:link rel="alternate" hreflang="{l["hreflang"]}" href="{BASE}{l["prefix"]}install/"/>' for l in LANGS)
+    links += f'\n    <xhtml:link rel="alternate" hreflang="x-default" href="{BASE}install/"/>'
+    urls += "".join(
+        f'\n  <url>\n    <loc>{BASE}{l["prefix"]}install/</loc>\n    <lastmod>{today}</lastmod>{links}\n  </url>' for l in LANGS)
     urls += f'\n  <url>\n    <loc>{BASE}privacy/</loc>\n    <lastmod>{today}</lastmod>\n  </url>'
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
@@ -342,9 +368,18 @@ def main():
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(render(template, lang, texts), "utf-8")
         print(f"  {lang['code']:6} -> {target.relative_to(OUT)}")
-    # Privacy policy: English only, same look as the landing pages
     style = re.search(r"<style>.*?</style>", template, re.S).group(0)
     headscript = re.search(r"<script>\n  // Before first paint.*?</script>", template, re.S).group(0)
+    script = re.search(r"<script>\n\(function \(\) \{.*?</script>", template, re.S).group(0)
+    # Installation guide: same header, footer and script as the landing page
+    guide = ((SRC / "install.html").read_text("utf-8").replace("{{$style}}", style)
+             .replace("{{$headscript}}", headscript).replace("{{$script}}", script))
+    for lang in LANGS:
+        target = OUT / lang["prefix"] / "install" / "index.html"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(render(guide, lang, texts, "install/"), "utf-8")
+        print(f"  {lang['code']:6} -> {target.relative_to(OUT)}")
+    # Privacy policy: English only, same look as the landing pages
     privacy = (SRC / "privacy.html").read_text("utf-8").replace("{{$style}}", style).replace("{{$headscript}}", headscript)
     en = dict(LANGS[0], prefix="privacy/")
     target = OUT / "privacy" / "index.html"

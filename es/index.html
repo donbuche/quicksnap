@@ -459,6 +459,17 @@ kbd {
 .note p { margin: 0; }
 .note svg { width: 22px; height: 22px; flex: none; color: var(--tile-ink); margin-top: 1px; }
 .note b { color: var(--text); }
+.guide-card { margin-top: 16px; padding: 22px; display: grid; grid-template-columns: 44px 1fr; gap: 16px; border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), 0 16px 40px -22px var(--accent); }
+.guide-card .tile { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--tile); color: var(--tile-ink); }
+.guide-card .tile svg { width: 24px; height: 24px; }
+.guide-card h3 { font-size: 17px; margin: 2px 0 6px; letter-spacing: 0; }
+.guide-card p { margin: 0 0 14px; color: var(--hint); font-size: 15px; }
+.guide-card p b { color: var(--text); }
+.guide-card .btn span, .first-time span { margin-left: 2px; }
+.first-time { margin: 18px 0 0; font-size: 15.5px; }
+.first-time a { display: inline-flex; align-items: center; gap: 7px; color: var(--hint); text-underline-offset: 4px; }
+.first-time a:hover { color: var(--text); }
+.first-time svg { width: 18px; height: 18px; color: var(--tile-ink); }
 .subhead { font-size: 15px; font-weight: 700; margin: 0 0 4px; padding-top: 16px; }
 .hotkeys { padding: 8px 24px 12px; }
 .hotkeys dl { margin: 0; }
@@ -675,6 +686,7 @@ pre .c { color: var(--hint); }
     <symbol id="i-apple" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.8 1.2 1.8 2.6 3.1 2.6 1.3-.1 1.7-.8 3.3-.8 1.5 0 1.9.8 3.3.8 1.4 0 2.2-1.3 3-2.5 1-1.4 1.3-2.7 1.4-2.8-.1 0-2.6-1-2.4-4.2zM13.9 4.9c.7-.9 1.2-2 1-3.2-1 .1-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></symbol>
     <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.3.8-.6v-2.2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5z"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.9M12 17h.01"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
     <symbol id="i-chip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
     <symbol id="i-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14M12 5v14"/></symbol>
@@ -750,6 +762,7 @@ pre .c { color: var(--hint); }
       <li>Unos 5 MB</li>
       <li>Gratis</li>
     </ul>
+    <p class="first-time"><a href="../es/install/"><svg aria-hidden="true" focusable="false"><use href="#i-help"/></svg>¿Primera vez? Cómo abrir QuickSnap en tu Mac<span aria-hidden="true">→</span></a></p>
 
     <div class="stage" id="stage">
       <div class="window">
@@ -882,7 +895,14 @@ pre .c { color: var(--hint); }
           <li><div><h3>Permítela una vez</h3><p>La primera vez, ve a <b>Ajustes del Sistema → Privacidad y seguridad</b> y haz clic en <b>Abrir igualmente</b>.</p></div></li>
           <li><div><h3>Permite la grabación de pantalla</h3><p>Activa QuickSnap en <b>Privacidad y seguridad → Grabación de pantalla</b> y vuelve a abrir la app.</p></div></li>
         </ol>
-        <div class="note glass"><svg aria-hidden="true" focusable="false"><use href="#i-info"/></svg><p>QuickSnap <b>aún no está notarizada por Apple</b>. Por eso macOS te pide que confirmes la primera vez que abres cada versión.</p></div>
+        <div class="guide-card glass">
+          <div class="tile" aria-hidden="true"><svg focusable="false"><use href="#i-help"/></svg></div>
+          <div>
+            <h3>¿No se abre QuickSnap?</h3>
+            <p>QuickSnap <b>aún no está notarizada por Apple</b>. Por eso macOS te pide que confirmes la primera vez que abres cada versión.</p>
+            <a class="btn btn-primary btn-sm" href="../es/install/">Guía paso a paso<span aria-hidden="true">→</span></a>
+          </div>
+        </div>
         <div class="note glass"><svg aria-hidden="true" focusable="false"><use href="#i-chip"/></svg><p>Las versiones publicadas son para Mac con <b>Apple Silicon</b>. En un Mac con Intel, compílala desde el código fuente con un solo comando.</p></div>
       </div>
       <div class="reveal">
@@ -931,6 +951,7 @@ pre .c { color: var(--hint); }
         <ul>
           <li><a href="https://github.com/donbuche/quicksnap">Código fuente</a></li>
           <li><a href="https://github.com/donbuche/quicksnap/releases">Versiones</a></li>
+          <li><a href="../es/install/">Ayuda con la instalación</a></li>
           <li><a href="https://github.com/donbuche/quicksnap/blob/main/CHANGELOG.md">Registro de cambios</a></li>
           <li><a href="https://github.com/donbuche/quicksnap/issues">Informar de un problema</a></li>
           <li><a href="../privacy/" hreflang="en">Política de privacidad (en inglés)</a></li>
@@ -982,7 +1003,7 @@ pre .c { color: var(--hint); }
     syncTheme();
   });
 
-  // Motion (WCAG 2.2.2): pause / play every animation
+  // Motion (WCAG 2.2.2): pause / play every animation (landing page only)
   var motionBtn = document.getElementById('motion');
   var motionLabel = document.getElementById('motion-label');
   function syncMotion() {
@@ -990,12 +1011,14 @@ pre .c { color: var(--hint); }
     motionBtn.setAttribute('aria-pressed', paused ? 'true' : 'false');
     motionLabel.textContent = paused ? T.play : T.pause;
   }
-  syncMotion();
-  motionBtn.addEventListener('click', function () {
-    d.classList.toggle('paused');
-    store('qs-motion', d.classList.contains('paused') ? 'paused' : 'playing');
+  if (motionBtn) {
     syncMotion();
-  });
+    motionBtn.addEventListener('click', function () {
+      d.classList.toggle('paused');
+      store('qs-motion', d.classList.contains('paused') ? 'paused' : 'playing');
+      syncMotion();
+    });
+  }
 
   // Language menu (disclosure pattern)
   var langBtn = document.getElementById('lang-btn');

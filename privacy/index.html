@@ -383,6 +383,17 @@ kbd {
 .note p { margin: 0; }
 .note svg { width: 22px; height: 22px; flex: none; color: var(--tile-ink); margin-top: 1px; }
 .note b { color: var(--text); }
+.guide-card { margin-top: 16px; padding: 22px; display: grid; grid-template-columns: 44px 1fr; gap: 16px; border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), 0 16px 40px -22px var(--accent); }
+.guide-card .tile { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--tile); color: var(--tile-ink); }
+.guide-card .tile svg { width: 24px; height: 24px; }
+.guide-card h3 { font-size: 17px; margin: 2px 0 6px; letter-spacing: 0; }
+.guide-card p { margin: 0 0 14px; color: var(--hint); font-size: 15px; }
+.guide-card p b { color: var(--text); }
+.guide-card .btn span, .first-time span { margin-left: 2px; }
+.first-time { margin: 18px 0 0; font-size: 15.5px; }
+.first-time a { display: inline-flex; align-items: center; gap: 7px; color: var(--hint); text-underline-offset: 4px; }
+.first-time a:hover { color: var(--text); }
+.first-time svg { width: 18px; height: 18px; color: var(--tile-ink); }
 .subhead { font-size: 15px; font-weight: 700; margin: 0 0 4px; padding-top: 16px; }
 .hotkeys { padding: 8px 24px 12px; }
 .hotkeys dl { margin: 0; }

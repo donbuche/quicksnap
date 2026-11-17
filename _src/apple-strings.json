@@ -1,0 +1,167 @@
+{
+  "en": {
+    "settings": "System Settings",
+    "privacy": "Privacy & Security",
+    "security": "Security",
+    "blocked": "“%@” was blocked to protect your Mac.",
+    "open_anyway": "Open Anyway",
+    "dlg_open_anyway": "Open Anyway",
+    "done": "Done",
+    "trash": "Move to Trash",
+    "screen": "Screen & System Audio Recording"
+  },
+  "es": {
+    "settings": "Ajustes del Sistema",
+    "privacy": "Privacidad y seguridad",
+    "security": "Seguridad",
+    "blocked": "Se ha bloqueado %@ para proteger tu Mac.",
+    "open_anyway": "Abrir igualmente",
+    "dlg_open_anyway": "Abrir igualmente",
+    "done": "Aceptar",
+    "trash": "Trasladar a la Papelera",
+    "screen": "Grabación de pantalla y del audio del sistema"
+  },
+  "ca": {
+    "settings": "Configuració del Sistema",
+    "privacy": "Privacitat i seguretat",
+    "security": "Seguretat",
+    "blocked": "S’ha bloquejat l’arxiu “%@” per protegir el Mac.",
+    "open_anyway": "Obre de tota manera",
+    "dlg_open_anyway": "Obre de tota manera",
+    "done": "Fet",
+    "trash": "Trasllada a la paperera",
+    "screen": "Gravació de la pantalla i de l’àudio del sistema"
+  },
+  "gl": {
+    "settings": "Ajustes del Sistema",
+    "privacy": "Privacidad y seguridad",
+    "security": "Seguridad",
+    "blocked": "Se ha bloqueado %@ para proteger tu Mac.",
+    "open_anyway": "Abrir igualmente",
+    "dlg_open_anyway": "Abrir igualmente",
+    "done": "Aceptar",
+    "trash": "Trasladar a la Papelera",
+    "screen": "Grabación de pantalla y del audio del sistema"
+  },
+  "eu": {
+    "settings": "Ajustes del Sistema",
+    "privacy": "Privacidad y seguridad",
+    "security": "Seguridad",
+    "blocked": "Se ha bloqueado %@ para proteger tu Mac.",
+    "open_anyway": "Abrir igualmente",
+    "dlg_open_anyway": "Abrir igualmente",
+    "done": "Aceptar",
+    "trash": "Trasladar a la Papelera",
+    "screen": "Grabación de pantalla y del audio del sistema"
+  },
+  "fr": {
+    "settings": "Réglages Système",
+    "privacy": "Confidentialité et sécurité",
+    "security": "Sécurité",
+    "blocked": "« %@ » a été bloqué pour protéger votre Mac.",
+    "open_anyway": "Ouvrir quand même",
+    "dlg_open_anyway": "Ouvrir quand même",
+    "done": "Terminé",
+    "trash": "Placer dans la corbeille",
+    "screen": "Enregistrement de l’écran et des sons du système"
+  },
+  "de": {
+    "settings": "Systemeinstellungen",
+    "privacy": "Datenschutz & Sicherheit",
+    "security": "Sicherheit",
+    "blocked": "„%@“ wurde blockiert, um deinen Mac zu schützen.",
+    "open_anyway": "Dennoch öffnen",
+    "dlg_open_anyway": "Dennoch öffnen",
+    "done": "Fertig",
+    "trash": "In den Papierkorb legen",
+    "screen": "Aufnahme von Bildschirm & Systemaudio"
+  },
+  "it": {
+    "settings": "Impostazioni di Sistema",
+    "privacy": "Privacy e sicurezza",
+    "security": "Sicurezza",
+    "blocked": "Il Mac ha bloccato %@ per garantire la sicurezza.",
+    "open_anyway": "Apri comunque",
+    "dlg_open_anyway": "Apri comunque",
+    "done": "Fine",
+    "trash": "Sposta nel Cestino",
+    "screen": "Registrazione schermo e audio di sistema"
+  },
+  "pt": {
+    "settings": "Definições do Sistema",
+    "privacy": "Privacidade e segurança",
+    "security": "Segurança",
+    "blocked": "“%@” foi bloqueado para proteger o Mac.",
+    "open_anyway": "Abrir",
+    "dlg_open_anyway": "Abrir",
+    "done": "OK",
+    "trash": "Mover para o Lixo",
+    "screen": "Gravação do ecrã e de áudio do sistema"
+  },
+  "pt-br": {
+    "settings": "Ajustes",
+    "privacy": "Privacidade e Segurança",
+    "security": "Segurança",
+    "blocked": "O app %@ foi bloqueado para proteger o Mac.",
+    "open_anyway": "Abrir Mesmo Assim",
+    "dlg_open_anyway": "Abrir Mesmo Assim",
+    "done": "OK",
+    "trash": "Mover para o Lixo",
+    "screen": "Gravação do Áudio do Sistema e da Tela"
+  },
+  "nl": {
+    "settings": "Systeeminstellingen",
+    "privacy": "Privacy en beveiliging",
+    "security": "Beveiliging",
+    "blocked": "'%@' is geblokkeerd om je Mac te beschermen.",
+    "open_anyway": "Open toch",
+    "dlg_open_anyway": "Open toch",
+    "done": "Gereed",
+    "trash": "Verplaats naar prullenmand",
+    "screen": "Scherm- en systeemaudio-opname"
+  },
+  "pl": {
+    "settings": "Ustawienia systemowe",
+    "privacy": "Prywatność i ochrona",
+    "security": "Ochrona",
+    "blocked": "Rzecz „%@” została zablokowana, aby chronić Maca.",
+    "open_anyway": "Otwórz mimo to",
+    "dlg_open_anyway": "Otwórz mimo to",
+    "done": "Gotowe",
+    "trash": "Przenieś do Kosza",
+    "screen": "Nagrywanie ekranu i dźwięku systemowego"
+  },
+  "ja": {
+    "settings": "システム設定",
+    "privacy": "プライバシーとセキュリティ",
+    "security": "セキュリティ",
+    "blocked": "お使いのMacを保護するために“%@”がブロックされました。",
+    "open_anyway": "このまま開く",
+    "dlg_open_anyway": "このまま開く",
+    "done": "完了",
+    "trash": "ゴミ箱に入れる",
+    "screen": "画面収録とシステムオーディオ録音"
+  },
+  "zh": {
+    "settings": "系统设置",
+    "privacy": "隐私与安全",
+    "security": "安全性",
+    "blocked": "已阻止“%@”以保护Mac。",
+    "open_anyway": "仍要打开",
+    "dlg_open_anyway": "仍要打开",
+    "done": "完成",
+    "trash": "移到废纸篓",
+    "screen": "录屏与系统录音"
+  },
+  "ko": {
+    "settings": "시스템 설정",
+    "privacy": "개인정보 보호 및 보안",
+    "security": "보안",
+    "blocked": "Mac을 보호하기 위해 ‘%@’을(를) 차단했습니다.",
+    "open_anyway": "그래도 열기",
+    "dlg_open_anyway": "그래도 열기",
+    "done": "완료",
+    "trash": "휴지통으로 이동",
+    "screen": "화면 및 시스템 오디오 녹음"
+  }
+}
