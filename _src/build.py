@@ -35,7 +35,7 @@ SRC = Path(__file__).resolve().parent
 OUT = SRC.parent
 
 BASE = "https://donbuche.github.io/quicksnap/"
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 GA_ID = "G-XSWM6BDFHG"  # Google Analytics 4, property "QuickSnap (GitHub Pages)"
 REPO = "https://github.com/donbuche/quicksnap"
 
