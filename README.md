@@ -39,9 +39,9 @@ then save or copy it, with no accounts, no uploads and no telemetry.
 ## Features
 
 - **Capture:** selected area, frozen area (screen is frozen while you select), full
-  screen, and full screen after a 10-second delay. In area capture, a click without
-  dragging grabs the window under the pointer ("Click to snap a window") or, with that
-  option off, the whole screen
+  screen, and full screen after a 10-second delay. Area capture works on every display:
+  drag an area, or click to grab the highlighted window ("Click to snap a window") or,
+  with that option off, the whole display you clicked
 - **Record video:** full-screen recording to `.mov`, with cursor and clicks shown
 - **Annotate:** arrows, rectangles, ellipses, lines, freehand pen, text and text callouts,
   with a colour palette (or any custom colour, also by hex code) and line width; every
@@ -166,7 +166,9 @@ src/
 ├── capture.rs       screen capture, video recording, clipboard, file output
 ├── editor.rs        annotation editor (tools, canvas, undo/redo)
 ├── shapes.rs        drawing of arrows, shapes, text, blur, crop
-├── overlay.rs       on-screen selection overlay
+├── overlay.rs       frozen-area selection screen
+├── selector.rs      live area selection over every display (Capture Area)
+├── screens.rs       displays, windows under the pointer, native window tweaks
 ├── hotkeys.rs       global hotkey registration
 ├── i18n.rs          interface languages (15) and their flags
 ├── settings.rs      settings model and persistence

@@ -5,13 +5,22 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 ## [Unreleased]
 
 ### Added
-- Capture Area: a click without dragging captures the whole screen it was made on
-  (with several displays, the clicked one) when "Click to snap a window" is off
+- Capture Area has its own selection layer over every display (the screen stays live):
+  drag an area (⇧ for a square, size shown with "Show hints"), click to capture, Esc to
+  cancel. It covers the menu bar and the Dock, and works on every connected display
+- Capture Area: with "Click to snap a window" on, the window under the pointer is
+  highlighted and a click captures just that window; with it off, a click captures the
+  whole display that was clicked
+
+### Changed
+- Preferences → Appearance: "Show hints" moved to the Capture area group, since it now
+  applies to both selection screens; the magnifier stays with the frozen area
 
 ### Fixed
-- "Click to snap a window" now works: in Capture Area, a click without dragging captures
-  the window under the pointer (or the whole screen when there is no window there).
-  Before, the option only enabled the system tool's Space-key window mode
+- "Click to snap a window" now works. Before, it only enabled the system tool's
+  Space-key window mode, and a click never captured a window
+- Clicks during Capture Area are no longer lost or misread on secondary displays or
+  when made quickly
 
 ## [0.4.0] - 2026-11-16
 

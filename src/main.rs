@@ -7,13 +7,14 @@
 mod app;
 mod appicon;
 mod capture;
-mod click;
 mod colour_picker;
 mod editor;
 mod hotkeys;
 mod i18n;
 mod icons;
 mod overlay;
+mod screens;
+mod selector;
 mod settings;
 mod settings_ui;
 mod shapes;

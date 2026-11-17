@@ -14,6 +14,7 @@ use crate::hotkeys::{Action, GlobalKeys};
 use crate::i18n::{self, t, tf, Lang};
 use crate::icons::{self, Icon};
 use crate::overlay::Overlay;
+use crate::selector::Selector;
 use crate::settings::{AfterShot, Settings, APP_NAME};
 use crate::settings_ui::{self, SettingsUi};
 use crate::shapes::{AnnotFont, Kind, Shape, TextStyle};
@@ -45,6 +46,10 @@ enum Command {
 /// really off screen when the picture is taken.
 const HIDE_BEFORE_CAPTURE: std::time::Duration = std::time::Duration::from_millis(250);
 
+/// How long a capture of a rectangle waits for the area selector's windows
+/// to leave the screen.
+const SELECTOR_GONE: std::time::Duration = std::time::Duration::from_millis(120);
+
 struct Toast {
     text: String,
     at: f64,
@@ -73,6 +78,8 @@ pub struct App {
     busy: Option<String>,
     recorder: Option<Recorder>,
     overlay: Option<Overlay>,
+    /// "Capture Area" selection layer, while it is up.
+    selector: Option<Selector>,
     previous_area: Option<Rect>,
     latest: Option<RgbaImage>,
     toasts: Vec<Toast>,
@@ -274,6 +281,7 @@ impl App {
             busy: None,
             recorder: None,
             overlay: None,
+            selector: None,
             previous_area: None,
             latest,
             toasts: Vec::new(),
@@ -499,7 +507,15 @@ impl App {
     }
 
     fn start_capture(&mut self, ctx: &Context, kind: CaptureKind) {
-        if self.busy.is_some() || self.overlay.is_some() {
+        if self.busy.is_some() || self.overlay.is_some() || self.selector.is_some() {
+            return;
+        }
+        if kind == CaptureKind::Area {
+            // QuickSnap's own live selection layer; it is drawn above
+            // everything, so the windows can hide while it is up
+            self.hide_for_capture(ctx);
+            crate::screens::activate_app();
+            self.selector = Some(Selector::new());
             return;
         }
         let opt = self.capture_options(ctx);
@@ -529,7 +545,7 @@ impl App {
     }
 
     fn start_previous(&mut self, ctx: &Context) {
-        if self.busy.is_some() || self.overlay.is_some() {
+        if self.busy.is_some() || self.overlay.is_some() || self.selector.is_some() {
             return;
         }
         let mut opt = self.capture_options(ctx);
@@ -565,11 +581,12 @@ impl App {
     /// After a capture: the main window comes back if it was hidden only for
     /// it and nothing else (like the editor) brought it back already.
     fn end_capture(&mut self, ctx: &Context) {
-        if self.restore_after_capture && self.hidden && self.overlay.is_none() {
+        let open = self.overlay.is_some() || self.selector.is_some();
+        if self.restore_after_capture && self.hidden && !open {
             self.hidden = false;
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
         }
-        if self.overlay.is_none() {
+        if !open {
             self.restore_after_capture = false;
         }
     }
@@ -1030,6 +1047,34 @@ impl App {
         }
     }
 
+    fn selector_window(&mut self, ctx: &Context) {
+        let Some(sel) = &mut self.selector else { return };
+        sel.show(ctx, self.settings.shot_on_click, self.settings.show_tip);
+        let Some(res) = sel.result.take() else { return };
+        self.selector = None;
+        let Some(choice) = res else {
+            self.end_capture(ctx);
+            return;
+        };
+        if let Some(r) = choice.previous_area {
+            self.previous_area = Some(r);
+        }
+        let mut opt = self.capture_options(ctx);
+        opt.retina_scale = choice.scale;
+        let tx = self.tx.clone();
+        let c = ctx.clone();
+        self.busy = Some("Capturing…".to_string());
+        std::thread::spawn(move || {
+            // a window is captured on its own; a rectangle waits until the
+            // selection layer is off the screen
+            if matches!(choice.target, capture::Target::Rect(_)) {
+                std::thread::sleep(SELECTOR_GONE);
+            }
+            let _ = tx.send(Msg::Captured(capture::capture_target(choice.target, &opt)));
+            c.request_repaint();
+        });
+    }
+
     fn screenshot_step(&mut self, ctx: &Context) {
         let Some(job) = &mut self.screenshot else { return };
         job.frame += 1;
@@ -1066,7 +1111,9 @@ impl App {
 
 impl eframe::App for App {
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
-        if theme::vibrant() {
+        // the area selector's windows are see-through (the main window is
+        // hidden meanwhile)
+        if theme::vibrant() || self.selector.is_some() {
             [0.0; 4]
         } else {
             visuals.panel_fill.to_normalized_gamma_f32()
@@ -1135,9 +1182,10 @@ impl eframe::App for App {
         }
         self.prefs_window(ctx);
         self.overlay_window(ctx);
+        self.selector_window(ctx);
         self.toasts_ui(ctx);
         // no click while a capture overlay is up
-        if self.overlay.is_none() {
+        if self.overlay.is_none() && self.selector.is_none() {
             crate::sound::click_feedback(ctx, self.settings.click_sound);
         }
 

@@ -20,7 +20,6 @@ pub enum CaptureKind {
 #[derive(Clone)]
 pub struct CaptureOptions {
     pub window_shadow: bool,
-    pub shot_on_click: bool,
     pub sound: bool,
     pub shrink_retina: bool,
     pub retina_scale: f32,
@@ -30,7 +29,6 @@ impl CaptureOptions {
     pub fn from(s: &Settings, retina_scale: f32) -> CaptureOptions {
         CaptureOptions {
             window_shadow: s.window_shadow,
-            shot_on_click: s.shot_on_click,
             sound: s.sound_effects,
             shrink_retina: s.shrink_retina,
             retina_scale,
@@ -43,9 +41,6 @@ pub enum CaptureResult {
     Cancelled,
     Failed(String),
 }
-
-/// A selection this small (in image pixels) is taken as a plain click.
-const TINY_SELECTION_PX: u32 = 4;
 
 fn base_command(opt: &CaptureOptions) -> Command {
     let mut cmd = Command::new("/usr/sbin/screencapture");
@@ -63,62 +58,49 @@ fn temp_file(ext: &str) -> PathBuf {
     std::env::temp_dir().join(format!("{}-{}.{}", settings::APP_NAME.to_lowercase(), stamp, ext))
 }
 
+/// What QuickSnap's own "Capture Area" selector chose.
+#[derive(Clone, Copy, Debug)]
+pub enum Target {
+    /// A rectangle in global screen points (a selection or a whole display).
+    Rect(crate::screens::ScreenRect),
+    /// One window, by its window-server id.
+    Window(u32),
+}
+
 /// Runs the system capture tool and blocks until it finishes; call it from a
-/// worker thread.
+/// worker thread. The area kinds are selected in QuickSnap's own screens, so
+/// here they only take the main display.
 pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
-    let file = temp_file("png");
     let mut cmd = base_command(opt);
-    match kind {
-        CaptureKind::Area | CaptureKind::FrozenArea => {
-            // selection only: the tool's own window mode needs Space, so a
-            // plain click is handled below instead
-            cmd.arg("-i").arg("-s");
+    cmd.arg("-m");
+    if kind == CaptureKind::FullscreenDelayed {
+        cmd.arg(format!("-T{}", settings::DELAYED_CAPTURE_SECONDS));
+    }
+    run(cmd, opt)
+}
+
+/// Captures what the area selector chose; call it from a worker thread.
+pub fn capture_target(target: Target, opt: &CaptureOptions) -> CaptureResult {
+    let mut cmd = base_command(opt);
+    match target {
+        Target::Rect(r) => {
+            cmd.arg(format!("-R{}", r.arg()));
         }
-        CaptureKind::Fullscreen => {
-            cmd.arg("-m");
-        }
-        CaptureKind::FullscreenDelayed => {
-            cmd.arg("-m").arg(format!("-T{}", settings::DELAYED_CAPTURE_SECONDS));
+        Target::Window(id) => {
+            cmd.arg(format!("-l{}", id));
+            if !opt.window_shadow {
+                cmd.arg("-o");
+            }
         }
     }
+    run(cmd, opt)
+}
+
+fn run(mut cmd: Command, opt: &CaptureOptions) -> CaptureResult {
+    let file = temp_file("png");
     cmd.arg(&file);
     if let Err(e) = cmd.status() {
         return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e]));
-    }
-    if kind == CaptureKind::Area && file.exists() {
-        // on a secondary display the tool turns a plain click into a selection
-        // of a pixel or two instead of exiting: that is a click too
-        if let Ok((w, h)) = image::image_dimensions(&file) {
-            if w.max(h) <= TINY_SELECTION_PX {
-                let _ = std::fs::remove_file(&file);
-            }
-        }
-    }
-    if !file.exists() && kind == CaptureKind::Area && crate::click::ended_with_click() {
-        // a click without dragging: the window under the pointer when
-        // "Click to snap a window" is on, otherwise the whole screen
-        let mut cmd = base_command(opt);
-        match crate::click::window_under_pointer().filter(|_| opt.shot_on_click) {
-            Some(id) => {
-                cmd.arg(format!("-l{}", id));
-                if !opt.window_shadow {
-                    cmd.arg("-o");
-                }
-            }
-            // the display that was clicked, not always the main one
-            None => match crate::click::display_under_pointer() {
-                Some(rect) => {
-                    cmd.arg(format!("-R{}", rect));
-                }
-                None => {
-                    cmd.arg("-m");
-                }
-            },
-        }
-        cmd.arg(&file);
-        if let Err(e) = cmd.status() {
-            return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e]));
-        }
     }
     if !file.exists() {
         return CaptureResult::Cancelled;
