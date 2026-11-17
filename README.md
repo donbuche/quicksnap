@@ -6,7 +6,7 @@
 
 **A lightweight screenshot and annotation tool for macOS, written in Rust.**
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success?logo=apple)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
@@ -47,8 +47,8 @@ then save or copy it, with no accounts, no uploads and no telemetry.
   with a colour palette (or any custom colour, also by hex code) and line width; every
   item can be moved and resized afterwards
 - **Zoom:** pinch on the trackpad or ⌘ + scroll around the pointer, or the zoom menu
-- **Drop shadow:** optional soft shadow around the exported picture (transparent PNG),
-  like macOS window screenshots
+- **Drop shadow:** optional light shadow around the exported picture (transparent PNG),
+  so a screenshot with a white background still stands out once pasted into an email
 - **Redact and trim:** blur sensitive areas (movable, resizable), crop, rotate and resize
 - **Undo/redo:** up to 40 steps
 - **After each capture:** open the editor, save to a folder, copy to the clipboard, or
