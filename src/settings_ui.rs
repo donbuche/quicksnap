@@ -376,21 +376,21 @@ impl SettingsUi {
             }
         });
         sec = crate::theme::section_next(ui, sec);
-        // "Capture Area" goes through macOS's own selection tool, which only
-        // lets these two be set
+        // QuickSnap's live selection layer ("Capture Area"); the hints also
+        // show on the frozen one
         row(ui, t("Capture area:"), |ui| {
             ui.checkbox(&mut s.window_shadow, t("Add shadow to window"));
         });
         row(ui, "", |ui| {
             ui.checkbox(&mut s.shot_on_click, t("Click to snap a window"));
         });
-        // QuickSnap's own selection screen ("Capture Frozen Area")
+        row(ui, "", |ui| {
+            ui.checkbox(&mut s.show_tip, t("Show hints"));
+        });
+        // the magnifier needs a frozen picture of the screen
         sec = crate::theme::section_next(ui, sec);
         row(ui, t("Frozen area:"), |ui| {
             ui.checkbox(&mut s.show_magnifier, t("Show magnifier"));
-        });
-        row(ui, "", |ui| {
-            ui.checkbox(&mut s.show_tip, t("Show hints"));
         });
         sec = crate::theme::section_next(ui, sec);
         row(ui, t("Status bar:"), |ui| {

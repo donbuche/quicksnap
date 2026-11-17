@@ -137,8 +137,21 @@ Capture Mouse Cursor true, Framerate 60 (5..60).
 | Settings toolbar height | 62 pt | toolbar drawn by the system in the original |
 
 ## How the rebuild uses them
-- Capture area / fullscreen / delayed use the system capture tool; "Add shadow to window" and
-  "Click to snap a window" map to its options, "Sound effects" off = silent capture.
+- Capture area uses QuickSnap's own live selection layer: one see-through borderless window
+  per display (raised to the screen-saver level so it covers the menu bar and the Dock, on
+  every Space). macOS sends mouse moves only to the key window, so the pointer is read
+  from the window server each frame; presses and releases come from whichever window got
+  them. Drag = rectangle (kept on the display it started on, ⇧ squares it); click (under
+  3 pt of movement) = the window under the pointer when "Click to snap a window" is on,
+  else the whole clicked display. The system capture tool then takes the result: -R with
+  the rectangle in global points (after the layer leaves the screen) or -l with the window
+  id ("Add shadow to window" off adds -o). A dragged area on the main display is remembered
+  for "Capture previous area".
+  Window under the pointer: front-to-back window list, skipping QuickSnap's own windows,
+  the pointer's own window (cursor level) and see-through windows above the apps that
+  cover the whole display (the Dock keeps one on its display).
+- Fullscreen / delayed use the system capture tool (-m); "Sound effects" off = silent
+  capture.
 - Capture frozen area freezes the screen and shows a full-screen selection with the magnifier
   and size hints (Appearance settings); its rectangle is remembered for "Capture previous area".
 - Anything that needs an account (upload, links, sign-in) is shown greyed out, because the
