@@ -20,7 +20,6 @@ pub enum CaptureKind {
 #[derive(Clone)]
 pub struct CaptureOptions {
     pub window_shadow: bool,
-    pub shot_on_click: bool,
     pub sound: bool,
     pub shrink_retina: bool,
     pub retina_scale: f32,
@@ -30,7 +29,6 @@ impl CaptureOptions {
     pub fn from(s: &Settings, retina_scale: f32) -> CaptureOptions {
         CaptureOptions {
             window_shadow: s.window_shadow,
-            shot_on_click: s.shot_on_click,
             sound: s.sound_effects,
             shrink_retina: s.shrink_retina,
             retina_scale,
@@ -44,6 +42,14 @@ pub enum CaptureResult {
     Failed(String),
 }
 
+fn base_command(opt: &CaptureOptions) -> Command {
+    let mut cmd = Command::new("/usr/sbin/screencapture");
+    if !opt.sound {
+        cmd.arg("-x");
+    }
+    cmd
+}
+
 fn temp_file(ext: &str) -> PathBuf {
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -52,35 +58,49 @@ fn temp_file(ext: &str) -> PathBuf {
     std::env::temp_dir().join(format!("{}-{}.{}", settings::APP_NAME.to_lowercase(), stamp, ext))
 }
 
+/// What QuickSnap's own "Capture Area" selector chose.
+#[derive(Clone, Copy, Debug)]
+pub enum Target {
+    /// A rectangle in global screen points (a selection or a whole display).
+    Rect(crate::screens::ScreenRect),
+    /// One window, by its window-server id.
+    Window(u32),
+}
+
 /// Runs the system capture tool and blocks until it finishes; call it from a
-/// worker thread.
+/// worker thread. The area kinds are selected in QuickSnap's own screens, so
+/// here they only take the main display.
 pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
-    let file = temp_file("png");
-    let mut cmd = Command::new("/usr/sbin/screencapture");
-    if !opt.sound {
-        cmd.arg("-x");
+    let mut cmd = base_command(opt);
+    cmd.arg("-m");
+    if kind == CaptureKind::FullscreenDelayed {
+        cmd.arg(format!("-T{}", settings::DELAYED_CAPTURE_SECONDS));
     }
-    match kind {
-        CaptureKind::Area | CaptureKind::FrozenArea => {
-            cmd.arg("-i");
-            if !opt.shot_on_click {
-                cmd.arg("-s"); // selection only, no click-to-snap-window
-            }
+    run(cmd, opt)
+}
+
+/// Captures what the area selector chose; call it from a worker thread.
+pub fn capture_target(target: Target, opt: &CaptureOptions) -> CaptureResult {
+    let mut cmd = base_command(opt);
+    match target {
+        Target::Rect(r) => {
+            cmd.arg(format!("-R{}", r.arg()));
+        }
+        Target::Window(id) => {
+            cmd.arg(format!("-l{}", id));
             if !opt.window_shadow {
                 cmd.arg("-o");
             }
         }
-        CaptureKind::Fullscreen => {
-            cmd.arg("-m");
-        }
-        CaptureKind::FullscreenDelayed => {
-            cmd.arg("-m").arg(format!("-T{}", settings::DELAYED_CAPTURE_SECONDS));
-        }
     }
+    run(cmd, opt)
+}
+
+fn run(mut cmd: Command, opt: &CaptureOptions) -> CaptureResult {
+    let file = temp_file("png");
     cmd.arg(&file);
-    match cmd.status() {
-        Ok(_) => {}
-        Err(e) => return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e])),
+    if let Err(e) = cmd.status() {
+        return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e]));
     }
     if !file.exists() {
         return CaptureResult::Cancelled;

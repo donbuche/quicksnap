@@ -6,7 +6,7 @@
 
 **A lightweight screenshot and annotation tool for macOS, written in Rust.**
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success?logo=apple)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
@@ -39,14 +39,16 @@ then save or copy it, with no accounts, no uploads and no telemetry.
 ## Features
 
 - **Capture:** selected area, frozen area (screen is frozen while you select), full
-  screen, and full screen after a 10-second delay
+  screen, and full screen after a 10-second delay. Area capture works on every display:
+  drag an area, or click to grab the highlighted window ("Click to snap a window") or,
+  with that option off, the whole display you clicked
 - **Record video:** full-screen recording to `.mov`, with cursor and clicks shown
 - **Annotate:** arrows, rectangles, ellipses, lines, freehand pen, text and text callouts,
   with a colour palette (or any custom colour, also by hex code) and line width; every
   item can be moved and resized afterwards
 - **Zoom:** pinch on the trackpad or ⌘ + scroll around the pointer, or the zoom menu
-- **Drop shadow:** optional soft shadow around the exported picture (transparent PNG),
-  like macOS window screenshots
+- **Drop shadow:** optional light shadow around the exported picture (transparent PNG),
+  so a screenshot with a white background still stands out once pasted into an email
 - **Redact and trim:** blur sensitive areas (movable, resizable), crop, rotate and resize
 - **Undo/redo:** up to 40 steps
 - **After each capture:** open the editor, save to a folder, copy to the clipboard, or
@@ -164,7 +166,9 @@ src/
 ├── capture.rs       screen capture, video recording, clipboard, file output
 ├── editor.rs        annotation editor (tools, canvas, undo/redo)
 ├── shapes.rs        drawing of arrows, shapes, text, blur, crop
-├── overlay.rs       on-screen selection overlay
+├── overlay.rs       frozen-area selection screen
+├── selector.rs      live area selection over every display (Capture Area)
+├── screens.rs       displays, windows under the pointer, native window tweaks
 ├── hotkeys.rs       global hotkey registration
 ├── i18n.rs          interface languages (15) and their flags
 ├── settings.rs      settings model and persistence

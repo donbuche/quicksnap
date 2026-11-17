@@ -755,14 +755,15 @@ pub fn outside_parts(full: Rect, r: Rect) -> Vec<Rect> {
 
 /// Blur a region of the picture in place (three box-blur passes; radius estimated).
 /// The drop shadow around an exported picture (the editor's Shadow toggle):
-/// a soft black shadow, slightly lower than the picture, on a transparent
-/// margin, like the shadow macOS gives window screenshots. Its softness
-/// grows with the picture (σ = 2 % of the longer side, 12–40 px).
-pub const DROP_SHADOW_ALPHA: f32 = 0.55;
-pub const DROP_SHADOW_SIGMA: f32 = 0.02;
-pub const DROP_SHADOW_SIGMA_MIN: f32 = 12.0;
-pub const DROP_SHADOW_SIGMA_MAX: f32 = 40.0;
-pub const DROP_SHADOW_DROP: f32 = 0.6;
+/// a tight, light black shadow, a little lower than the picture, on a
+/// transparent margin. It is there to mark where a picture with a white
+/// background ends once pasted into a white page (an email, a document),
+/// not to make it float much: σ = 1.2 % of the longer side, 7–22 px.
+pub const DROP_SHADOW_ALPHA: f32 = 0.48;
+pub const DROP_SHADOW_SIGMA: f32 = 0.012;
+pub const DROP_SHADOW_SIGMA_MIN: f32 = 7.0;
+pub const DROP_SHADOW_SIGMA_MAX: f32 = 22.0;
+pub const DROP_SHADOW_DROP: f32 = 0.5;
 pub const DROP_SHADOW_MARGIN: f32 = 2.5;
 
 /// σ, downward offset and margin of the drop shadow for a w × h picture.
@@ -931,7 +932,7 @@ mod tests {
         assert_eq!(*out.get_pixel(m + 200, m + 150), image::Rgba([255, 255, 255, 255]));
         assert_eq!(out.get_pixel(0, 0)[3], 0);
         let below = out.get_pixel(m + 200, m + 300 + drop as u32);
-        assert!(below[3] > 60, "shadow under the picture: {}", below[3]);
+        assert!(below[3] > 30, "shadow under the picture: {}", below[3]);
     }
 
     #[test]

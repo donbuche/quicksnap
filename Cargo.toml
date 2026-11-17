@@ -1,6 +1,6 @@
 [package]
 name = "quicksnap"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 
 [dependencies]
@@ -29,8 +29,8 @@ winit = "0.30"
 # (an NSVisualEffectView placed behind the window's content view).
 raw-window-handle = "0.6"
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSVisualEffectView", "NSGraphics"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry", "NSArray", "NSString"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSVisualEffectView", "NSGraphics", "NSApplication", "NSWindow", "NSRunningApplication"] }
 
 [profile.dev]
 opt-level = 1

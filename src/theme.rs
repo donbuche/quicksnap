@@ -227,14 +227,43 @@ pub fn glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
     p.add(sh.as_shape(r, CornerRadius::same(radius)));
 }
 
-/// A turquoise glow (the hover colour) around a rounded rectangle.
-pub fn hover_glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
-    if amount <= 0.01 {
-        return;
+/// A flat control of the home screen (capture tiles, bottom buttons, the
+/// language picker): a plain see-through fill and a hairline border, with no
+/// sheen, lifted off the background by a dark navy shadow. Hover and keyboard
+/// focus (`amount` 0–1) lighten the fill (plus a turquoise tint of `tint`)
+/// and lift it higher with a wider, darker shadow; a press presses it down
+/// to a tight one.
+pub fn flat_button(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32, pressed: bool, tint: f32) {
+    let k = amount.clamp(0.0, 1.0);
+    let cr = CornerRadius::same(radius);
+    // (offset y, blur, spread, alpha) at rest, lifted and pressed
+    let (rest, lift, down) = if pal.dark {
+        ((2.0, 8.0, 0.0, 120.0), (6.0, 18.0, 1.0, 175.0), (1.0, 3.0, 0.0, 190.0))
+    } else {
+        ((2.0, 8.0, 0.0, 34.0), (6.0, 18.0, 1.0, 60.0), (1.0, 3.0, 0.0, 70.0))
+    };
+    let lerp = |a: f32, b: f32| a + (b - a) * k;
+    let (dy, blur, spread, alpha) = if pressed {
+        down
+    } else {
+        (lerp(rest.0, lift.0), lerp(rest.1, lift.1), lerp(rest.2, lift.2), lerp(rest.3, lift.3))
+    };
+    let navy = if pal.dark { (6, 5, 28) } else { (28, 22, 78) };
+    let sh = Shadow {
+        offset: [0, dy.round() as i8],
+        blur: blur.round() as u8,
+        spread: spread.round() as u8,
+        color: rgba(navy.0, navy.1, navy.2, alpha.round() as u8),
+    };
+    p.add(sh.as_shape(r, cr));
+    p.rect_filled(r, cr, pal.glass);
+    // under the pointer the button lightens behind a see-through veil
+    let veil = if pal.dark { 30.0 } else { 150.0 } * k;
+    if veil > 0.5 {
+        p.rect_filled(r.shrink(1.0), (radius as f32 - 1.0).max(0.0), Color32::from_white_alpha(veil.round() as u8));
     }
-    let c = mix(pal.hover_a, pal.hover_b, 0.5).gamma_multiply(if pal.dark { 0.25 } else { 0.18 } * amount);
-    let sh = Shadow { offset: [0, 1], blur: 6, spread: 0, color: c };
-    p.add(sh.as_shape(r, CornerRadius::same(radius)));
+    hover_fill(p, r, radius as f32, pal, tint * k);
+    p.rect_stroke(r, cr, Stroke::new(1.0_f32, pal.border), StrokeKind::Inside);
 }
 
 /// A rounded rectangle filled with the turquoise hover gradient.
@@ -313,12 +342,6 @@ pub fn glass_shapes(ctx: &Context, r: Rect, radius: u8, pal: &Pal, backdrops: &[
     v.push(sheen_shape(ctx, r, radius, pal));
     v.push(RectShape::stroke(r, CornerRadius::same(radius), Stroke::new(1.0_f32, pal.border), StrokeKind::Inside).into());
     v
-}
-
-pub fn glass(p: &Painter, r: Rect, radius: u8, pal: &Pal, backdrops: &[Backdrop]) {
-    for s in glass_shapes(p.ctx(), r, radius, pal, backdrops) {
-        p.add(s);
-    }
 }
 
 /// A button filled with the accent gradient and white text.
@@ -485,6 +508,38 @@ pub fn blurred_backdrop(img: &RgbaImage) -> egui::ColorImage {
 /// The aurora: a diagonal gradient with soft glowing colour blobs. With
 /// `see_through` it is partly transparent so the (blurred) desktop shows.
 pub fn aurora_image(dark: bool, see_through: bool) -> egui::ColorImage {
+    aurora_image_at(dark, see_through, None, egui::Vec2::ZERO)
+}
+
+/// How far the drifting blobs wander from their places (fraction of the
+/// picture) and how much they grow and shrink.
+const DRIFT_REACH: f32 = 0.16;
+const DRIFT_BREATH: f32 = 0.08;
+/// Slows every wave down (1 = periods of about 40–100 s).
+const DRIFT_SPEED: f32 = 0.65;
+/// How far the blobs lean towards the pointer (fraction of the picture
+/// when the pointer is at an edge), and each blob's depth: nearer ones
+/// move more, which gives a little parallax.
+const PARALLAX_REACH: f32 = 0.07;
+const PARALLAX_DEPTH: [f32; 5] = [1.0, 0.7, 1.25, 0.85, 1.5];
+
+/// Where blob `i` has drifted at `t` seconds: an offset and a size factor.
+/// Each axis sums two slow waves with unrelated periods (about 1–2.5 min),
+/// so the path looks random and never visibly repeats.
+fn drift(i: usize, t: f32) -> (f32, f32, f32) {
+    use std::f32::consts::TAU;
+    let k = i as f32;
+    let t = t * DRIFT_SPEED;
+    let wave = |p1: f32, p2: f32, ph: f32| 0.6 * (TAU * t / p1 + ph).sin() + 0.4 * (TAU * t / p2 + ph * 1.7).sin();
+    let dx = wave(47.0 + 9.0 * k, 83.0 + 5.0 * k, 1.3 * k + 0.4);
+    let dy = wave(59.0 + 7.0 * k, 97.0 - 6.0 * k, 2.1 * k + 1.1);
+    let size = (TAU * t / (41.0 + 11.0 * k) + k).sin();
+    (DRIFT_REACH * dx, DRIFT_REACH * dy, 1.0 + DRIFT_BREATH * size)
+}
+
+/// The aurora with its blobs drifted to `t` seconds (None: at rest) and
+/// leaning by `lean` (pointer offset from the centre, -0.5–0.5 per axis).
+fn aurora_image_at(dark: bool, see_through: bool, t: Option<f32>, lean: egui::Vec2) -> egui::ColorImage {
     let (w, h) = (192usize, 120usize);
     let (base_a, base_b) = if dark {
         ([20.0f32, 15.0, 42.0], [10.0f32, 22.0, 48.0])
@@ -526,7 +581,10 @@ pub fn aurora_image(dark: bool, see_through: bool) -> egui::ColorImage {
                 c[i] = base_a[i] + (base_b[i] - base_a[i]) * k;
             }
             let mut alpha = base_alpha;
-            for (bx, by, r, col) in blobs {
+            for (i, &(bx, by, r, col)) in blobs.iter().enumerate() {
+                let (ox, oy, grow) = t.map(|t| drift(i, t)).unwrap_or((0.0, 0.0, 1.0));
+                let depth = PARALLAX_DEPTH[i % PARALLAX_DEPTH.len()] * PARALLAX_REACH * 2.0;
+                let (bx, by, r) = (bx + ox + lean.x * depth, by + oy + lean.y * depth, r * grow);
                 let d = (((fx - bx) * 1.6).powi(2) + (fy - by).powi(2)).sqrt();
                 let a = (1.0 - d / r).clamp(0.0, 1.0).powf(1.8) * strength;
                 for i in 0..3 {
@@ -547,6 +605,71 @@ pub fn background(p: &Painter, area: Rect, pal: &Pal, see_through: bool) -> Back
     let st = see_through && vibrant();
     let key = format!("aurora-{}-{}", pal.dark, st);
     let tex = cached_tex(p.ctx(), &key, || aurora_image(pal.dark, st));
+    let bd = Backdrop::cover(tex, area, vec2(192.0, 120.0));
+    bd.paint(p);
+    bd
+}
+
+/// State of the home screen's living aurora.
+#[derive(Clone)]
+struct Drift {
+    tex: egui::TextureHandle,
+    /// The drift's own clock (s): it only runs while the window is in front.
+    clock: f64,
+    /// When the picture was last redrawn.
+    drawn_at: f64,
+    /// When the state was last looked at.
+    seen_at: f64,
+    /// How far the blobs lean towards the pointer now (eases to the target).
+    lean: egui::Vec2,
+}
+
+/// The aurora with its colour blobs drifting slowly, like bubbles, and
+/// leaning gently towards the pointer (for the home screen). While `moving`
+/// the drift redraws the picture about 4 times a second, and more often only
+/// while the blobs follow the pointer; otherwise it stays exactly where it is
+/// and costs nothing. Its clock carries on from there without a jump.
+pub fn background_drifting(p: &Painter, area: Rect, pal: &Pal, see_through: bool, moving: bool) -> Backdrop {
+    /// Seconds between drift frames, and while following the pointer.
+    const DRIFT_FRAME: f64 = 1.0 / 4.0;
+    const FOLLOW_FRAME: f64 = 1.0 / 30.0;
+    /// How quickly the lean catches up with the pointer (time constant, s).
+    const FOLLOW_EASE: f32 = 0.6;
+    let ctx = p.ctx();
+    let st = see_through && vibrant();
+    let id = egui::Id::new(("aurora-drift", pal.dark, st));
+    let now = ctx.input(|i| i.time);
+    let target = ctx
+        .input(|i| i.pointer.hover_pos())
+        .filter(|_| moving)
+        .map(|q| vec2((q.x - area.center().x) / area.width(), (q.y - area.center().y) / area.height()).clamp(vec2(-0.5, -0.5), vec2(0.5, 0.5)));
+    let mut d = match ctx.data_mut(|m| m.get_temp::<Drift>(id)) {
+        Some(d) => d,
+        None => {
+            let tex = ctx.load_texture("aurora-drift", aurora_image_at(pal.dark, st, Some(0.0), egui::Vec2::ZERO), egui::TextureOptions::LINEAR);
+            Drift { tex, clock: 0.0, drawn_at: now, seen_at: now, lean: egui::Vec2::ZERO }
+        }
+    };
+    // a long pause (hidden, in the background) does not count
+    let dt = (now - d.seen_at).clamp(0.0, 0.25);
+    d.seen_at = now;
+    let mut following = false;
+    if moving {
+        d.clock += dt;
+        if let Some(target) = target {
+            let k = 1.0 - (-(dt as f32) / FOLLOW_EASE).exp();
+            d.lean += (target - d.lean) * k;
+            following = (target - d.lean).length() > 0.002;
+        }
+        let due = if following { FOLLOW_FRAME } else { DRIFT_FRAME };
+        if now - d.drawn_at >= due {
+            d.tex.set(aurora_image_at(pal.dark, st, Some(d.clock as f32), d.lean), egui::TextureOptions::LINEAR);
+            d.drawn_at = now;
+        }
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(if following { FOLLOW_FRAME } else { DRIFT_FRAME }));
+    }
+    let tex = d.tex.id();
+    ctx.data_mut(|m| m.insert_temp(id, d));
     let bd = Backdrop::cover(tex, area, vec2(192.0, 120.0));
     bd.paint(p);
     bd
@@ -585,13 +708,6 @@ pub fn section_next(ui: &mut Ui, s: Section) -> Section {
 pub const HOVER_FADE_SECONDS: f32 = 0.18;
 pub fn hover_amount(ctx: &Context, id: egui::Id, hovered: bool) -> f32 {
     ctx.animate_bool_with_time(id.with("hover_fade"), hovered, HOVER_FADE_SECONDS)
-}
-
-/// A see-through white veil laid over a surface under the pointer: it makes
-/// the surface lighter while letting what is behind show through.
-pub fn hover_veil(pal: &Pal, amount: f32) -> Color32 {
-    let max = if pal.dark { 30.0 } else { 150.0 };
-    Color32::from_white_alpha((max * amount.clamp(0.0, 1.0)).round() as u8)
 }
 
 /// Mixes two colours (amount 0 = `a`, 1 = `b`).
