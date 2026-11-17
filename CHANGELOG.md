@@ -4,6 +4,8 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-18
+
 ### Changed
 - README: links to the step-by-step guide (with pictures, in 15 languages) for opening
   QuickSnap the first time, and uses macOS's current name for the Screen & System Audio
@@ -143,7 +145,8 @@ No changes in the app itself; this version is about how it is released.
 First version: area, frozen-area, full-screen and delayed captures, screen recording,
 annotation editor, menu-bar app, global hotkeys and an English/Spanish/Catalan interface.
 
-[Unreleased]: https://github.com/donbuche/quicksnap/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/donbuche/quicksnap/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/donbuche/quicksnap/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/donbuche/quicksnap/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/donbuche/quicksnap/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/donbuche/quicksnap/compare/v0.3.1...v0.4.0
