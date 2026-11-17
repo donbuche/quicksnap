@@ -802,7 +802,14 @@ impl App {
         let mut chosen: Option<Command> = None;
         egui::CentralPanel::default().frame(Frame::new()).show(ctx, |ui| {
             let full = ui.max_rect();
-            theme::background(ui.painter(), full, &pal, true);
+            // the colour blobs drift slowly while the window is on screen and
+            // in front (still for --screenshot, so pictures are repeatable)
+            let focused = ctx.input(|i| i.viewport().focused).unwrap_or(true);
+            if self.screenshot.is_some() {
+                theme::background(ui.painter(), full, &pal, true);
+            } else {
+                theme::background_drifting(ui.painter(), full, &pal, true, focused && !self.hidden);
+            }
             // 9 % of the height above the logo, less in a short window so the
             // bottom buttons still fit (the rest of the screen is ~610 pt)
             ui.add_space(((full.height() - 610.0) * 0.5).clamp(10.0, (full.height() * 0.09).max(16.0)));

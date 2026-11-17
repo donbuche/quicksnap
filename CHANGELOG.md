@@ -13,6 +13,9 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
   whole display that was clicked
 
 ### Changed
+- Home screen: the background's colour glows drift slowly around the window, like
+  bubbles, and lean gently towards the pointer with a little parallax. It only moves
+  while the window is in front, and then pauses where it is
 - Editor: the drop shadow around the picture is tighter and lighter, just enough to show
   where a white screenshot ends once pasted into an email or a document
 - Editor: the Shadow toggle has an icon
