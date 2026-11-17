@@ -4,6 +4,15 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 
 ## [Unreleased]
 
+### Changed
+- Home screen: the background's colour glows are scattered at random on every launch
+  (no longer one per corner) and wander along their own irregular paths; each reacts
+  to the pointer its own way, with its own strength, direction and delay, and some
+  drift away from it. They glide smoothly (drawn as meshes at about 30 frames a second
+  instead of a picture redrawn a few times a second)
+- The background's diagonal gradient is clearer in both themes: violet at the top left
+  to blue at the bottom right (dark `#24124A` → `#061C3C`, light `#EEE3FF` → `#DCEEFF`)
+
 ## [0.5.0] - 2026-11-17
 
 ### Added
