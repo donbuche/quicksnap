@@ -2751,7 +2751,7 @@ dependencies = [
 
 [[package]]
 name = "quicksnap"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "ab_glyph",
  "arboard",
