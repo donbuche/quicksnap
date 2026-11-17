@@ -4,6 +4,11 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 
 ## [Unreleased]
 
+### Changed
+- README: links to the step-by-step guide (with pictures, in 15 languages) for opening
+  QuickSnap the first time, and uses macOS's current name for the Screen & System Audio
+  Recording pane
+
 ## [0.5.1] - 2026-11-17
 
 ### Changed
