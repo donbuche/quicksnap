@@ -856,7 +856,7 @@ impl App {
                 let hov = theme::hover_amount(ctx, resp.id, lit);
                 let p = ui.painter();
                 theme::flat_button(p, r, 20, &pal, hov, resp.is_pointer_button_down_on(), 0.18);
-                // bare one-ink icons: accent at rest, turquoise when the tile
+                // bare one-ink icons: accent at rest, lighter violet when the tile
                 // is hovered, focused or pressed (red while recording)
                 let recording = *cmd == Command::RecordVideo && self.recorder.is_some();
                 // icon and name sit at the same height in every tile, so they
@@ -1138,6 +1138,26 @@ impl App {
 }
 
 impl eframe::App for App {
+    /// With --screenshot the window shows a fixed layout: the real pointer
+    /// (which may pass over it or click it) is ignored, so no button lights
+    /// up or gets pressed in the picture.
+    fn raw_input_hook(&mut self, _ctx: &Context, raw: &mut egui::RawInput) {
+        if self.screenshot.is_some() {
+            raw.events.retain(|e| {
+                !matches!(
+                    e,
+                    egui::Event::PointerMoved(_)
+                        | egui::Event::MouseMoved(_)
+                        | egui::Event::PointerButton { .. }
+                        | egui::Event::PointerGone
+                        | egui::Event::MouseWheel { .. }
+                        | egui::Event::Zoom(_)
+                        | egui::Event::Touch { .. }
+                )
+            });
+        }
+    }
+
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
         // the area selector's windows are see-through (the main window is
         // hidden meanwhile)
@@ -1191,6 +1211,8 @@ impl eframe::App for App {
                     "fonts" => settings_ui::Tab::Fonts,
                     _ => settings_ui::Tab::General,
                 };
+                // prefs-about: the About box over the General tab
+                self.prefs.about = tab == "about";
                 let _ = self.prefs.show(ctx, &mut self.settings);
                 self.screenshot_step(ctx);
                 return;

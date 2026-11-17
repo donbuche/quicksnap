@@ -6,7 +6,7 @@
 
 **A lightweight screenshot and annotation tool for macOS, written in Rust.**
 
-![Version](https://img.shields.io/badge/version-0.5.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.1-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success?logo=apple)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
@@ -147,12 +147,12 @@ needed), which is enough for the Mac it was built on.
 
 | Flag | What it does |
 |---|---|
-| `--screenshot <file.png>` | Opens the editor with a sample picture, saves the window to `file.png` and exits |
+| `--screenshot <file.png>` | Opens the editor with a sample picture, saves the window to `file.png` and exits (the pointer is ignored meanwhile) |
 | `--write-icon <file.png> <size>` | Renders the app icon to a PNG (used by the packaging script) |
 | `--write-tray-icon <file.png> <size>` | Renders the one-ink menu-bar icon to a PNG |
 
 With `--screenshot`, the environment variables `QUICKSNAP_VIEW` (`home`, `prefs-general`,
-`prefs-advanced`…), `QUICKSNAP_THEME` (`light`/`dark`), `QUICKSNAP_LANG` (`en`, `es`, `ca`, `gl`, `eu`, `fr`, `de`, `it`, `pt`, `pt-br`, `nl`, `pl`,
+`prefs-advanced`…, `prefs-about` for the About box), `QUICKSNAP_THEME` (`light`/`dark`), `QUICKSNAP_LANG` (`en`, `es`, `ca`, `gl`, `eu`, `fr`, `de`, `it`, `pt`, `pt-br`, `nl`, `pl`,
 `ja`, `zh`, `ko`)
 and `QUICKSNAP_WINDOW` (e.g. `1000x620`) choose what is shown; `QUICKSNAP_ZOOM=2`
 renders at twice the resolution (Retina-sharp shots on a 1x display).

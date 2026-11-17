@@ -8,13 +8,13 @@ use tiny_skia::{
 };
 
 pub const BLADE_COLORS: [(u8, u8, u8); 7] = [
-    (255, 59, 48),   // red
-    (255, 149, 0),   // orange
-    (255, 204, 0),   // yellow
-    (52, 199, 89),   // green
-    (0, 199, 190),   // teal
-    (10, 132, 255),  // blue
-    (175, 82, 222),  // purple
+    (255, 105, 104), // red
+    (255, 169, 70),  // orange
+    (255, 213, 70),  // yellow
+    (106, 211, 130), // green
+    (70, 207, 208),  // teal
+    (80, 158, 254),  // blue
+    (187, 124, 233), // purple
 ];
 
 fn circle(cx: f32, cy: f32, r: f32) -> tiny_skia::Path {
@@ -38,6 +38,11 @@ fn shade(c: (u8, u8, u8), k: f32) -> Color {
 
 /// Renders the icon at `n`×`n` pixels.
 pub fn render(n: u32) -> RgbaImage {
+    render_with(n, &BLADE_COLORS)
+}
+
+/// The icon with other blade colours (for trying palettes).
+pub fn render_with(n: u32, blades: &[(u8, u8, u8); 7]) -> RgbaImage {
     let mut px = Pixmap::new(n, n).expect("pixmap");
     let s = n as f32;
     let (cx, cy) = (s / 2.0, s / 2.0);
@@ -76,7 +81,7 @@ pub fn render(n: u32) -> RgbaImage {
     base.set_color(Color::from_rgba8(10, 12, 18, 255));
     px.fill_path(&circle(cx, cy, ra), &base, FillRule::Winding, id, None);
 
-    let nb = BLADE_COLORS.len();
+    let nb = blades.len();
     let r0 = s * 0.14;
     let rot = -std::f32::consts::FRAC_PI_2 + 0.25;
     let v: Vec<(f32, f32)> = (0..nb)
@@ -100,7 +105,7 @@ pub fn render(n: u32) -> RgbaImage {
         let d1 = dir(i + 1);
         let f1 = (v1.0 + d0.0 * far, v1.1 + d0.1 * far);
         let f2 = (v2.0 + d1.0 * far, v2.1 + d1.1 * far);
-        let col = BLADE_COLORS[i];
+        let col = blades[i];
         if let Some(path) = poly(&[v1, f1, f2, v2]) {
             let mut p = Paint::default();
             p.anti_alias = true;

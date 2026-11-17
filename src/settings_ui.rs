@@ -69,7 +69,7 @@ pub struct SettingsUi {
     selected_font: Option<usize>,
     last_height: f32,
     /// The "About" box is open (shown over this window).
-    about: bool,
+    pub about: bool,
     logo: Option<egui::TextureHandle>,
 }
 
@@ -155,17 +155,22 @@ impl SettingsUi {
                 ctx.load_texture("about-logo", ci, egui::TextureOptions::LINEAR)
             })
             .clone();
-        let modal = egui::Modal::new(egui::Id::new("about_box")).show(ctx, |ui| {
-            ui.set_width(280.0);
+        // roomy: a generous margin inside the box and air between the lines;
+        // opaque, so the settings behind it do not show through the text
+        let fill = if crate::theme::pal(ctx).dark { egui::Color32::from_rgb(32, 27, 54) } else { egui::Color32::from_rgb(252, 251, 255) };
+        let frame = egui::Frame::popup(&ctx.style()).fill(fill).inner_margin(egui::Margin::symmetric(36, 30)).corner_radius(16.0);
+        let modal = egui::Modal::new(egui::Id::new("about_box")).frame(frame).show(ctx, |ui| {
+            ui.set_width(300.0);
             ui.vertical_centered(|ui| {
+                ui.add(egui::Image::new(&logo).fit_to_exact_size(vec2(80.0, 80.0)));
+                ui.add_space(14.0);
+                ui.label(RichText::new(APP_NAME).size(22.0).strong());
                 ui.add_space(4.0);
-                ui.add(egui::Image::new(&logo).fit_to_exact_size(vec2(72.0, 72.0)));
-                ui.label(RichText::new(APP_NAME).size(20.0).strong());
-                ui.label(tf("Version {}", &[&env!("CARGO_PKG_VERSION")]));
-                ui.add_space(6.0);
+                ui.label(RichText::new(tf("Version {}", &[&env!("CARGO_PKG_VERSION")])).weak());
+                ui.add_space(16.0);
                 ui.label(t("Screenshots, annotations and screen recordings."));
-                ui.add_space(10.0);
-                if crate::theme::gradient_button(ui, t("OK"), vec2(96.0, 28.0)).clicked() {
+                ui.add_space(26.0);
+                if crate::theme::gradient_button(ui, t("OK"), vec2(110.0, 32.0)).clicked() {
                     self.about = false;
                 }
             });

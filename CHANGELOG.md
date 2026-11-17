@@ -4,6 +4,24 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-17
+
+### Changed
+- Home screen: the background's colour glows are scattered at random on every launch
+  (no longer one per corner) and wander along their own irregular paths; each reacts
+  to the pointer its own way, with its own strength, direction and delay, and some
+  drift away from it. They glide smoothly (drawn as meshes at about 30 frames a second
+  instead of a picture redrawn a few times a second)
+- Hover is violet instead of turquoise everywhere (home screen, language picker, editor
+  tools, the Save button): a light tint of the accent, while selected things stay solid
+  violet, so the app uses one accent colour
+- About box: more room inside (wider margins, more space between the lines) and an
+  opaque background, so the settings behind it no longer show through the text
+- The background's diagonal gradient is clearer in both themes: violet at the top left
+  to blue at the bottom right (dark `#24124A` → `#061C3C`, light `#EEE3FF` → `#DCEEFF`)
+- App icon: softer blade colours, halfway between macOS's system colours and pastels
+  (`#FF6968`, `#FFA946`, `#FFD546`, `#6AD382`, `#46CFD0`, `#509EFE`, `#BB7CE9`)
+
 ## [0.5.0] - 2026-11-17
 
 ### Added
@@ -120,7 +138,8 @@ No changes in the app itself; this version is about how it is released.
 First version: area, frozen-area, full-screen and delayed captures, screen recording,
 annotation editor, menu-bar app, global hotkeys and an English/Spanish/Catalan interface.
 
-[Unreleased]: https://github.com/donbuche/quicksnap/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/donbuche/quicksnap/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/donbuche/quicksnap/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/donbuche/quicksnap/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/donbuche/quicksnap/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/donbuche/quicksnap/compare/v0.3.0...v0.3.1
