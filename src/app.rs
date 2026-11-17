@@ -1138,6 +1138,26 @@ impl App {
 }
 
 impl eframe::App for App {
+    /// With --screenshot the window shows a fixed layout: the real pointer
+    /// (which may pass over it or click it) is ignored, so no button lights
+    /// up or gets pressed in the picture.
+    fn raw_input_hook(&mut self, _ctx: &Context, raw: &mut egui::RawInput) {
+        if self.screenshot.is_some() {
+            raw.events.retain(|e| {
+                !matches!(
+                    e,
+                    egui::Event::PointerMoved(_)
+                        | egui::Event::MouseMoved(_)
+                        | egui::Event::PointerButton { .. }
+                        | egui::Event::PointerGone
+                        | egui::Event::MouseWheel { .. }
+                        | egui::Event::Zoom(_)
+                        | egui::Event::Touch { .. }
+                )
+            });
+        }
+    }
+
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
         // the area selector's windows are see-through (the main window is
         // hidden meanwhile)

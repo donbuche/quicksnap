@@ -147,7 +147,7 @@ needed), which is enough for the Mac it was built on.
 
 | Flag | What it does |
 |---|---|
-| `--screenshot <file.png>` | Opens the editor with a sample picture, saves the window to `file.png` and exits |
+| `--screenshot <file.png>` | Opens the editor with a sample picture, saves the window to `file.png` and exits (the pointer is ignored meanwhile) |
 | `--write-icon <file.png> <size>` | Renders the app icon to a PNG (used by the packaging script) |
 | `--write-tray-icon <file.png> <size>` | Renders the one-ink menu-bar icon to a PNG |
 
