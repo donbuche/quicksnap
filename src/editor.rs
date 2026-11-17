@@ -714,7 +714,7 @@ impl Editor {
                 theme::divider(ui, pal);
                 ui.label(RichText::new(t("Drag over anything you want to hide · ⇧ for a square")).size(12.0).color(pal.text));
                 theme::divider(ui, pal);
-                ui.toggle_value(&mut s.editor_shadow, t("Shadow")).on_hover_text(t(SHADOW_TIP));
+                shadow_toggle(ui, &mut s.editor_shadow).on_hover_text(t(SHADOW_TIP));
             });
             return;
         }
@@ -830,7 +830,7 @@ impl Editor {
                 }
             }
             theme::divider(ui, pal);
-            ui.toggle_value(&mut new_shadow, t("Shadow")).on_hover_text(t(SHADOW_TIP));
+            shadow_toggle(ui, &mut new_shadow).on_hover_text(t(SHADOW_TIP));
         });
 
         // the shadow is for the whole picture, not for one item
@@ -1524,4 +1524,20 @@ fn paint_prims(
             }
         }
     }
+}
+
+/// The Shadow toggle of the style bar: its icon and label.
+fn shadow_toggle(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+    let id = ui.id().with("shadow_icon");
+    let out = egui::Button::selectable(*on, (egui::Atom::custom(id, vec2(15.0, 15.0)), t("Shadow"))).atom_ui(ui);
+    if let Some(r) = out.rect(id) {
+        let c = ui.style().interact_selectable(&out.response, *on).text_color();
+        icons::paint(ui.painter(), r, Icon::Shadow, c);
+    }
+    let mut resp = out.response;
+    if resp.clicked() {
+        *on = !*on;
+        resp.mark_changed();
+    }
+    resp
 }

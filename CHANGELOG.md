@@ -13,6 +13,9 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
   whole display that was clicked
 
 ### Changed
+- Editor: the drop shadow around the picture is tighter and lighter, just enough to show
+  where a white screenshot ends once pasted into an email or a document
+- Editor: the Shadow toggle has an icon
 - Preferences → Appearance: "Show hints" moved to the Capture area group, since it now
   applies to both selection screens; the magnifier stays with the frozen area
 

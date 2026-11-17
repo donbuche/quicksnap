@@ -37,6 +37,8 @@ pub enum Icon {
     // editor actions
     Copy,
     OpenExternal,
+    /// A sheet with a drop shadow (the editor's Shadow toggle).
+    Shadow,
 }
 
 fn p(r: Rect, x: f32, y: f32) -> Pos2 {
@@ -248,6 +250,13 @@ pub fn paint(painter: &Painter, r: Rect, icon: Icon, c: Color32) {
             painter.add(Shape::line(vec![p(r, 0.44, 0.18), p(r, 0.14, 0.18), p(r, 0.14, 0.86), p(r, 0.82, 0.86), p(r, 0.82, 0.56)], s));
             painter.line_segment([p(r, 0.46, 0.54), p(r, 0.86, 0.14)], s);
             painter.add(Shape::line(vec![p(r, 0.6, 0.14), p(r, 0.86, 0.14), p(r, 0.86, 0.4)], s));
+        }
+        Icon::Shadow => {
+            // the shadow peeks out right and below the sheet
+            let shade = c.gamma_multiply(0.6);
+            painter.rect_filled(Rect::from_min_max(p(r, 0.7, 0.3), p(r, 0.88, 0.88)), 1.5, shade);
+            painter.rect_filled(Rect::from_min_max(p(r, 0.3, 0.7), p(r, 0.7, 0.88)), 1.5, shade);
+            painter.rect_stroke(Rect::from_min_max(p(r, 0.12, 0.12), p(r, 0.7, 0.7)), 2.0, s, egui::StrokeKind::Middle);
         }
         Icon::Image => {
             painter.rect_stroke(Rect::from_min_max(p(r, 0.12, 0.2), p(r, 0.88, 0.8)), 2.0, s, egui::StrokeKind::Middle);
