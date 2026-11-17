@@ -4,6 +4,8 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-17
+
 ### Added
 - Capture Area has its own selection layer over every display (the screen stays live):
   drag an area (⇧ for a square, size shown with "Show hints"), click to capture, Esc to
@@ -13,12 +15,6 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
   whole display that was clicked
 
 ### Changed
-- Home screen: the background's colour glows drift slowly around the window, like
-  bubbles, and lean gently towards the pointer with a little parallax. It only moves
-  while the window is in front, and then pauses where it is
-- Editor: the drop shadow around the picture is tighter and lighter, just enough to show
-  where a white screenshot ends once pasted into an email or a document
-- Editor: the Shadow toggle has an icon
 - Home screen: flat capture tiles, bottom buttons and language picker (no sheen along
   the top) on a dark navy shadow instead of the turquoise glow. The shadow lifts wider
   and darker on hover and keyboard focus and tightens when pressed
@@ -28,6 +24,12 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
   the shortcut and more space between name and shortcut; icon and name sit at the same
   height whether a tile has a shortcut or not, and all tiles take the same turquoise
   tint on hover as the other buttons. The main window's minimum height grows to 690 pt
+- Home screen: the background's colour glows drift slowly around the window, like
+  bubbles, and lean gently towards the pointer with a little parallax. It only moves
+  while the window is in front, and then pauses where it is
+- Editor: the drop shadow around the picture is tighter and lighter, just enough to show
+  where a white screenshot ends once pasted into an email or a document
+- Editor: the Shadow toggle has an icon
 - Preferences → Appearance: "Show hints" moved to the Capture area group, since it now
   applies to both selection screens; the magnifier stays with the frozen area
 
@@ -118,6 +120,10 @@ No changes in the app itself; this version is about how it is released.
 First version: area, frozen-area, full-screen and delayed captures, screen recording,
 annotation editor, menu-bar app, global hotkeys and an English/Spanish/Catalan interface.
 
+[Unreleased]: https://github.com/donbuche/quicksnap/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/donbuche/quicksnap/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/donbuche/quicksnap/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/donbuche/quicksnap/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/donbuche/quicksnap/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/donbuche/quicksnap/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/donbuche/quicksnap/releases/tag/v0.1.0
