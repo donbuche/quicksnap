@@ -39,7 +39,9 @@ then save or copy it, with no accounts, no uploads and no telemetry.
 ## Features
 
 - **Capture:** selected area, frozen area (screen is frozen while you select), full
-  screen, and full screen after a 10-second delay
+  screen, and full screen after a 10-second delay. In area capture, a click without
+  dragging grabs the window under the pointer ("Click to snap a window") or, with that
+  option off, the whole screen
 - **Record video:** full-screen recording to `.mov`, with cursor and clicks shown
 - **Annotate:** arrows, rectangles, ellipses, lines, freehand pen, text and text callouts,
   with a colour palette (or any custom colour, also by hex code) and line width; every

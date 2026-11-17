@@ -137,8 +137,11 @@ Capture Mouse Cursor true, Framerate 60 (5..60).
 | Settings toolbar height | 62 pt | toolbar drawn by the system in the original |
 
 ## How the rebuild uses them
-- Capture area / fullscreen / delayed use the system capture tool; "Add shadow to window" and
-  "Click to snap a window" map to its options, "Sound effects" off = silent capture.
+- Capture area / fullscreen / delayed use the system capture tool; "Add shadow to window" maps
+  to its options, "Sound effects" off = silent capture. A click
+  without dragging in Capture area is detected afterwards (last event = mouse up, not a key):
+  it snaps the window under the pointer when "Click to snap a window" is on, else the whole
+  screen (the system tool itself only snaps windows after pressing Space).
 - Capture frozen area freezes the screen and shows a full-screen selection with the magnifier
   and size hints (Appearance settings); its rectangle is remembered for "Capture previous area".
 - Anything that needs an account (upload, links, sign-in) is shown greyed out, because the

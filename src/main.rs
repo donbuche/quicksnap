@@ -7,6 +7,7 @@
 mod app;
 mod appicon;
 mod capture;
+mod click;
 mod colour_picker;
 mod editor;
 mod hotkeys;

@@ -44,6 +44,14 @@ pub enum CaptureResult {
     Failed(String),
 }
 
+fn base_command(opt: &CaptureOptions) -> Command {
+    let mut cmd = Command::new("/usr/sbin/screencapture");
+    if !opt.sound {
+        cmd.arg("-x");
+    }
+    cmd
+}
+
 fn temp_file(ext: &str) -> PathBuf {
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -56,19 +64,12 @@ fn temp_file(ext: &str) -> PathBuf {
 /// worker thread.
 pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
     let file = temp_file("png");
-    let mut cmd = Command::new("/usr/sbin/screencapture");
-    if !opt.sound {
-        cmd.arg("-x");
-    }
+    let mut cmd = base_command(opt);
     match kind {
         CaptureKind::Area | CaptureKind::FrozenArea => {
-            cmd.arg("-i");
-            if !opt.shot_on_click {
-                cmd.arg("-s"); // selection only, no click-to-snap-window
-            }
-            if !opt.window_shadow {
-                cmd.arg("-o");
-            }
+            // selection only: the tool's own window mode needs Space, so a
+            // plain click is handled below instead
+            cmd.arg("-i").arg("-s");
         }
         CaptureKind::Fullscreen => {
             cmd.arg("-m");
@@ -78,9 +79,28 @@ pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
         }
     }
     cmd.arg(&file);
-    match cmd.status() {
-        Ok(_) => {}
-        Err(e) => return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e])),
+    if let Err(e) = cmd.status() {
+        return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e]));
+    }
+    if !file.exists() && kind == CaptureKind::Area && crate::click::ended_with_click() {
+        // a click without dragging: the window under the pointer when
+        // "Click to snap a window" is on, otherwise the whole screen
+        let mut cmd = base_command(opt);
+        match crate::click::window_under_pointer().filter(|_| opt.shot_on_click) {
+            Some(id) => {
+                cmd.arg(format!("-l{}", id));
+                if !opt.window_shadow {
+                    cmd.arg("-o");
+                }
+            }
+            None => {
+                cmd.arg("-m");
+            }
+        }
+        cmd.arg(&file);
+        if let Err(e) = cmd.status() {
+            return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e]));
+        }
     }
     if !file.exists() {
         return CaptureResult::Cancelled;

@@ -2,6 +2,17 @@
 
 All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+- Capture Area: a click without dragging captures the whole screen when
+  "Click to snap a window" is off
+
+### Fixed
+- "Click to snap a window" now works: in Capture Area, a click without dragging captures
+  the window under the pointer (or the whole screen when there is no window there).
+  Before, the option only enabled the system tool's Space-key window mode
+
 ## [0.4.0] - 2026-11-16
 
 ### Added
