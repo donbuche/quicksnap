@@ -5,8 +5,11 @@
 #
 # The binary defaults to target/release/quicksnap (build it on develop with
 # `cargo build --release`; target/ is ignored, so it survives `git switch`).
-# Writes assets/shots/<lang>/<view>-<theme>.jpg, rendered at 2x
-# (QUICKSNAP_ZOOM=2) so they are Retina-sharp on any display.
+# Writes assets/shots/<lang>/<view>-<theme>.jpg, rendered at 2x so they
+# are Retina-sharp: a Retina display already gives 2x; on a 1x display the
+# app draws everything twice as large (QUICKSNAP_ZOOM=2). Which one applies
+# is found with a test shot, since a doubled window would not fit on a
+# Retina screen and macOS would shrink it. Set ZOOM=1 or ZOOM=2 to skip it.
 # Home and editor: a 1180x700-point window; Preferences: 500 points wide
 # (the app sets the height to fit each tab).
 set -euo pipefail
@@ -20,6 +23,13 @@ VIEWS="home editor prefs-general prefs-hotkeys prefs-appearance"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+if [ -z "${ZOOM:-}" ]; then
+  QUICKSNAP_VIEW=home QUICKSNAP_WINDOW=1180x700 "$BIN" --screenshot "$TMP/probe.png" >/dev/null 2>&1
+  width=$(sips -g pixelWidth "$TMP/probe.png" | awk '/pixelWidth/ {print $2}')
+  if [ "$width" -ge 2360 ]; then ZOOM=1; else ZOOM=2; fi
+fi
+echo "Rendering with QUICKSNAP_ZOOM=$ZOOM"
+
 for lang in $LANGS; do
   out="assets/shots/$lang"
   mkdir -p "$out"
@@ -31,10 +41,10 @@ for lang in $LANGS; do
         *) win=500x645 ;;
       esac
       if [ "$view" = editor ]; then
-        QUICKSNAP_ZOOM=2 QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=$win \
+        QUICKSNAP_ZOOM=$ZOOM QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=$win \
           "$BIN" --screenshot "$png" >/dev/null 2>&1
       else
-        QUICKSNAP_ZOOM=2 QUICKSNAP_VIEW=$view QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=$win \
+        QUICKSNAP_ZOOM=$ZOOM QUICKSNAP_VIEW=$view QUICKSNAP_LANG=$lang QUICKSNAP_THEME=$theme QUICKSNAP_WINDOW=$win \
           "$BIN" --screenshot "$png" >/dev/null 2>&1
       fi
       case "$view" in
