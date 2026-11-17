@@ -42,8 +42,9 @@ pub struct Pal {
     /// The accent is a gradient from `accent` (violet) to `accent2`, the blue
     /// of the aurora's lower-left glow.
     pub accent2: Color32,
-    /// Under the pointer things light up in a turquoise gradient (the colour
-    /// of the aurora's lower glow), from `hover_a` to `hover_b`.
+    /// Under the pointer things light up in a violet gradient, a lighter
+    /// shade of the accent (selected things are solid accent), from
+    /// `hover_a` to `hover_b`.
     pub hover_a: Color32,
     pub hover_b: Color32,
     pub accent_soft: Color32,
@@ -74,8 +75,8 @@ pub const LIGHT: Pal = Pal {
     hint: Color32::from_rgb(0x6b, 0x67, 0x80),
     accent: Color32::from_rgb(0x74, 0x52, 0xf5),
     accent2: Color32::from_rgb(0x4b, 0x5c, 0xe8),
-    hover_a: Color32::from_rgb(0x0e, 0xa5, 0xb9),
-    hover_b: Color32::from_rgb(0x22, 0xc8, 0xe0),
+    hover_a: Color32::from_rgb(0x5b, 0x34, 0xe6),
+    hover_b: Color32::from_rgb(0x8a, 0x6d, 0xff),
     accent_soft: rgba(116, 82, 245, 38),
     control: rgba(60, 40, 130, 16),
     hover: rgba(60, 40, 130, 28),
@@ -94,8 +95,8 @@ pub const DARK: Pal = Pal {
     hint: Color32::from_rgb(0xa8, 0xa3, 0xc4),
     accent: Color32::from_rgb(0x8b, 0x6c, 0xff),
     accent2: Color32::from_rgb(0x4f, 0x5b, 0xf5),
-    hover_a: Color32::from_rgb(0x12, 0xb5, 0xc8),
-    hover_b: Color32::from_rgb(0x2a, 0xd8, 0xee),
+    hover_a: Color32::from_rgb(0x9d, 0x7f, 0xff),
+    hover_b: Color32::from_rgb(0xe2, 0xd9, 0xff),
     accent_soft: rgba(139, 108, 255, 55),
     control: rgba(255, 255, 255, 18),
     hover: rgba(255, 255, 255, 30),
@@ -230,7 +231,7 @@ pub fn glow(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32) {
 /// A flat control of the home screen (capture tiles, bottom buttons, the
 /// language picker): a plain see-through fill and a hairline border, with no
 /// sheen, lifted off the background by a dark navy shadow. Hover and keyboard
-/// focus (`amount` 0–1) lighten the fill (plus a turquoise tint of `tint`)
+/// focus (`amount` 0–1) lighten the fill (plus a violet tint of `tint`)
 /// and lift it higher with a wider, darker shadow; a press presses it down
 /// to a tight one.
 pub fn flat_button(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32, pressed: bool, tint: f32) {
@@ -266,7 +267,7 @@ pub fn flat_button(p: &Painter, r: Rect, radius: u8, pal: &Pal, amount: f32, pre
     p.rect_stroke(r, cr, Stroke::new(1.0_f32, pal.border), StrokeKind::Inside);
 }
 
-/// A rounded rectangle filled with the turquoise hover gradient.
+/// A rounded rectangle filled with the violet hover gradient.
 pub fn hover_fill(p: &Painter, r: Rect, radius: f32, pal: &Pal, alpha: f32) {
     if alpha <= 0.0 {
         return;
