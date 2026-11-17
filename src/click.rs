@@ -28,8 +28,10 @@ mod ffi {
     }
 
     pub const COMBINED_SESSION_STATE: i32 = 0;
-    pub const LEFT_MOUSE_UP: u32 = 2;
+    pub const LEFT_MOUSE_DOWN: u32 = 1;
     pub const KEY_DOWN: u32 = 10;
+    /// The level of the window that draws the mouse pointer.
+    pub const CURSOR_LAYER: i64 = 2147483630;
     pub const ON_SCREEN_ONLY: u32 = 1 << 0;
     pub const EXCLUDE_DESKTOP_ELEMENTS: u32 = 1 << 4;
     pub const CF_NUMBER_SINT64: CFIndex = 4;
@@ -47,6 +49,8 @@ mod ffi {
         pub fn CGEventGetLocation(event: CFTypeRef) -> CGPoint;
         pub fn CGWindowListCopyWindowInfo(option: u32, relative_to: u32) -> CFTypeRef;
         pub fn CGRectMakeWithDictionaryRepresentation(dict: CFTypeRef, rect: *mut CGRect) -> bool;
+        pub fn CGGetDisplaysWithPoint(point: CGPoint, max: u32, displays: *mut u32, count: *mut u32) -> i32;
+        pub fn CGDisplayBounds(display: u32) -> CGRect;
     }
 
     #[link(name = "CoreFoundation", kind = "framework")]
@@ -64,13 +68,14 @@ mod ffi {
 #[cfg(target_os = "macos")]
 pub fn ended_with_click() -> bool {
     use ffi::*;
-    let (up, key) = unsafe {
+    let (down, key) = unsafe {
         (
-            CGEventSourceSecondsSinceLastEventType(COMBINED_SESSION_STATE, LEFT_MOUSE_UP),
+            // the tool exits on the press, before the button is released
+            CGEventSourceSecondsSinceLastEventType(COMBINED_SESSION_STATE, LEFT_MOUSE_DOWN),
             CGEventSourceSecondsSinceLastEventType(COMBINED_SESSION_STATE, KEY_DOWN),
         )
     };
-    up < CLICK_WINDOW_SECS && up < key
+    down < CLICK_WINDOW_SECS && down < key
 }
 
 /// The id of the normal app window under the pointer, if any (not the
@@ -79,14 +84,9 @@ pub fn ended_with_click() -> bool {
 pub fn window_under_pointer() -> Option<u32> {
     use ffi::*;
     use std::ffi::c_void;
+    let p = pointer()?;
+    let screen = display_rect_at(p);
     unsafe {
-        let ev = CGEventCreate(std::ptr::null());
-        if ev.is_null() {
-            return None;
-        }
-        let p = CGEventGetLocation(ev);
-        CFRelease(ev);
-
         let list = CGWindowListCopyWindowInfo(ON_SCREEN_ONLY | EXCLUDE_DESKTOP_ELEMENTS, 0);
         if list.is_null() {
             return None;
@@ -118,9 +118,25 @@ pub fn window_under_pointer() -> Option<u32> {
             if alpha <= 0.0 || int(d, kCGWindowOwnerPID) == Some(me) {
                 continue;
             }
+            let layer = int(d, kCGWindowLayer);
+            // the pointer itself is drawn in a small window above everything
+            if layer == Some(CURSOR_LAYER) {
+                continue;
+            }
+            // the Dock (and similar tools) keep a see-through window over the
+            // whole display above the apps: it does not hide anything
+            let covers_display = screen.is_some_and(|sc| {
+                r.origin.x <= sc.origin.x
+                    && r.origin.y <= sc.origin.y
+                    && r.origin.x + r.size.x >= sc.origin.x + sc.size.x
+                    && r.origin.y + r.size.y >= sc.origin.y + sc.size.y
+            });
+            if layer != Some(0) && covers_display {
+                continue;
+            }
             // the topmost window here decides: a normal window is snapped,
-            // anything above (menu bar, Dock, overlays) means "no window"
-            if int(d, kCGWindowLayer) == Some(0) {
+            // anything above (menu bar, Dock icons, panels) means "no window"
+            if layer == Some(0) {
                 found = int(d, kCGWindowNumber).map(|n| n as u32);
             }
             break;
@@ -128,6 +144,48 @@ pub fn window_under_pointer() -> Option<u32> {
         CFRelease(list);
         found
     }
+}
+
+/// The pointer position in global screen points (top-left origin).
+#[cfg(target_os = "macos")]
+fn pointer() -> Option<ffi::CGPoint> {
+    use ffi::*;
+    unsafe {
+        let ev = CGEventCreate(std::ptr::null());
+        if ev.is_null() {
+            return None;
+        }
+        let p = CGEventGetLocation(ev);
+        CFRelease(ev);
+        Some(p)
+    }
+}
+
+/// The bounds of the display containing a point, in global screen points.
+#[cfg(target_os = "macos")]
+fn display_rect_at(p: ffi::CGPoint) -> Option<ffi::CGRect> {
+    use ffi::*;
+    unsafe {
+        let mut id: u32 = 0;
+        let mut count: u32 = 0;
+        if CGGetDisplaysWithPoint(p, 1, &mut id, &mut count) != 0 || count == 0 {
+            return None;
+        }
+        Some(CGDisplayBounds(id))
+    }
+}
+
+/// The rectangle of the display under the pointer, as `x,y,w,h` in global
+/// screen points (what the capture tool's -R takes).
+#[cfg(target_os = "macos")]
+pub fn display_under_pointer() -> Option<String> {
+    let r = display_rect_at(pointer()?)?;
+    Some(format!("{},{},{},{}", r.origin.x, r.origin.y, r.size.x, r.size.y))
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn display_under_pointer() -> Option<String> {
+    None
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -139,3 +197,5 @@ pub fn ended_with_click() -> bool {
 pub fn window_under_pointer() -> Option<u32> {
     None
 }
+
+

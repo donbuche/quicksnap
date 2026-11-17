@@ -139,9 +139,14 @@ Capture Mouse Cursor true, Framerate 60 (5..60).
 ## How the rebuild uses them
 - Capture area / fullscreen / delayed use the system capture tool; "Add shadow to window" maps
   to its options, "Sound effects" off = silent capture. A click
-  without dragging in Capture area is detected afterwards (last event = mouse up, not a key):
+  without dragging in Capture area is detected afterwards (last event = mouse press, not a key; the tool exits on the press):
   it snaps the window under the pointer when "Click to snap a window" is on, else the whole
-  screen (the system tool itself only snaps windows after pressing Space).
+  display under the pointer (-R with its bounds; -m would always be the menu-bar display) (the system tool itself only snaps windows after pressing Space).
+  On a secondary display the tool saves a 1-pixel selection on a plain click instead of
+  exiting, so a result of 4 px or less is also treated as a click.
+  Window under the pointer: front-to-back window list, skipping the pointer's own window
+  (cursor level) and see-through windows above the apps that cover the whole display (the
+  Dock keeps one on its display).
 - Capture frozen area freezes the screen and shows a full-screen selection with the magnifier
   and size hints (Appearance settings); its rectangle is remembered for "Capture previous area".
 - Anything that needs an account (upload, links, sign-in) is shown greyed out, because the

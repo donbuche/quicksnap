@@ -5,8 +5,8 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 ## [Unreleased]
 
 ### Added
-- Capture Area: a click without dragging captures the whole screen when
-  "Click to snap a window" is off
+- Capture Area: a click without dragging captures the whole screen it was made on
+  (with several displays, the clicked one) when "Click to snap a window" is off
 
 ### Fixed
 - "Click to snap a window" now works: in Capture Area, a click without dragging captures

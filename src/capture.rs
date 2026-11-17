@@ -44,6 +44,9 @@ pub enum CaptureResult {
     Failed(String),
 }
 
+/// A selection this small (in image pixels) is taken as a plain click.
+const TINY_SELECTION_PX: u32 = 4;
+
 fn base_command(opt: &CaptureOptions) -> Command {
     let mut cmd = Command::new("/usr/sbin/screencapture");
     if !opt.sound {
@@ -82,6 +85,15 @@ pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
     if let Err(e) = cmd.status() {
         return CaptureResult::Failed(tf("Could not start the capture tool: {}", &[&e]));
     }
+    if kind == CaptureKind::Area && file.exists() {
+        // on a secondary display the tool turns a plain click into a selection
+        // of a pixel or two instead of exiting: that is a click too
+        if let Ok((w, h)) = image::image_dimensions(&file) {
+            if w.max(h) <= TINY_SELECTION_PX {
+                let _ = std::fs::remove_file(&file);
+            }
+        }
+    }
     if !file.exists() && kind == CaptureKind::Area && crate::click::ended_with_click() {
         // a click without dragging: the window under the pointer when
         // "Click to snap a window" is on, otherwise the whole screen
@@ -93,9 +105,15 @@ pub fn capture(kind: CaptureKind, opt: &CaptureOptions) -> CaptureResult {
                     cmd.arg("-o");
                 }
             }
-            None => {
-                cmd.arg("-m");
-            }
+            // the display that was clicked, not always the main one
+            None => match crate::click::display_under_pointer() {
+                Some(rect) => {
+                    cmd.arg(format!("-R{}", rect));
+                }
+                None => {
+                    cmd.arg("-m");
+                }
+            },
         }
         cmd.arg(&file);
         if let Err(e) = cmd.status() {
