@@ -17,6 +17,8 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
   opaque background, so the settings behind it no longer show through the text
 - The background's diagonal gradient is clearer in both themes: violet at the top left
   to blue at the bottom right (dark `#24124A` → `#061C3C`, light `#EEE3FF` → `#DCEEFF`)
+- App icon: softer blade colours, halfway between macOS's system colours and pastels
+  (`#FF6968`, `#FFA946`, `#FFD546`, `#6AD382`, `#46CFD0`, `#509EFE`, `#BB7CE9`)
 
 ## [0.5.0] - 2026-11-17
 
