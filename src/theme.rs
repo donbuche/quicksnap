@@ -505,49 +505,13 @@ pub fn blurred_backdrop(img: &RgbaImage) -> egui::ColorImage {
     egui::ColorImage::from_rgba_unmultiplied([tw as usize, th as usize], small.as_raw())
 }
 
-/// The aurora: a diagonal gradient with soft glowing colour blobs. With
-/// `see_through` it is partly transparent so the (blurred) desktop shows.
-pub fn aurora_image(dark: bool, see_through: bool) -> egui::ColorImage {
-    aurora_image_at(dark, see_through, None, egui::Vec2::ZERO)
-}
+/// A colour blob as drawn: centre (fractions of the picture), radius and
+/// colour.
+type Blob = (f32, f32, f32, [f32; 3]);
 
-/// How far the drifting blobs wander from their places (fraction of the
-/// picture) and how much they grow and shrink.
-const DRIFT_REACH: f32 = 0.16;
-const DRIFT_BREATH: f32 = 0.08;
-/// Slows every wave down (1 = periods of about 40–100 s).
-const DRIFT_SPEED: f32 = 0.65;
-/// How far the blobs lean towards the pointer (fraction of the picture
-/// when the pointer is at an edge), and each blob's depth: nearer ones
-/// move more, which gives a little parallax.
-const PARALLAX_REACH: f32 = 0.07;
-const PARALLAX_DEPTH: [f32; 5] = [1.0, 0.7, 1.25, 0.85, 1.5];
-
-/// Where blob `i` has drifted at `t` seconds: an offset and a size factor.
-/// Each axis sums two slow waves with unrelated periods (about 1–2.5 min),
-/// so the path looks random and never visibly repeats.
-fn drift(i: usize, t: f32) -> (f32, f32, f32) {
-    use std::f32::consts::TAU;
-    let k = i as f32;
-    let t = t * DRIFT_SPEED;
-    let wave = |p1: f32, p2: f32, ph: f32| 0.6 * (TAU * t / p1 + ph).sin() + 0.4 * (TAU * t / p2 + ph * 1.7).sin();
-    let dx = wave(47.0 + 9.0 * k, 83.0 + 5.0 * k, 1.3 * k + 0.4);
-    let dy = wave(59.0 + 7.0 * k, 97.0 - 6.0 * k, 2.1 * k + 1.1);
-    let size = (TAU * t / (41.0 + 11.0 * k) + k).sin();
-    (DRIFT_REACH * dx, DRIFT_REACH * dy, 1.0 + DRIFT_BREATH * size)
-}
-
-/// The aurora with its blobs drifted to `t` seconds (None: at rest) and
-/// leaning by `lean` (pointer offset from the centre, -0.5–0.5 per axis).
-fn aurora_image_at(dark: bool, see_through: bool, t: Option<f32>, lean: egui::Vec2) -> egui::ColorImage {
-    let (w, h) = (192usize, 120usize);
-    let (base_a, base_b) = if dark {
-        ([20.0f32, 15.0, 42.0], [10.0f32, 22.0, 48.0])
-    } else {
-        ([246.0f32, 242.0, 255.0], [236.0f32, 245.0, 255.0])
-    };
-    // x, y, radius, colour
-    let blobs: [(f32, f32, f32, [f32; 3]); 5] = if dark {
+/// The aurora's blobs at rest: one near each corner and one in the middle.
+fn rest_blobs(dark: bool) -> [Blob; 5] {
+    if dark {
         [
             (0.12, 0.08, 0.55, [124.0, 92.0, 255.0]),
             (0.92, 0.12, 0.50, [240.0, 72.0, 200.0]),
@@ -563,6 +527,23 @@ fn aurora_image_at(dark: bool, see_through: bool, t: Option<f32>, lean: egui::Ve
             (0.05, 0.95, 0.45, [165.0, 180.0, 252.0]),
             (0.50, 0.55, 0.40, [216.0, 180.0, 254.0]),
         ]
+    }
+}
+
+/// The aurora: a diagonal gradient with soft glowing colour blobs. With
+/// `see_through` it is partly transparent so the (blurred) desktop shows.
+pub fn aurora_image(dark: bool, see_through: bool) -> egui::ColorImage {
+    paint_aurora(dark, see_through, &rest_blobs(dark))
+}
+
+/// The aurora's look: the gradient's two ends (top-left, bottom-right), how
+/// strongly the blobs show and how opaque the backdrop is.
+fn aurora_look(dark: bool, see_through: bool) -> ([f32; 3], [f32; 3], f32, f32) {
+    // violet at the top left to blue at the bottom right
+    let (base_a, base_b) = if dark {
+        ([36.0f32, 18.0, 74.0], [6.0f32, 28.0, 60.0])
+    } else {
+        ([238.0f32, 227.0, 255.0], [220.0f32, 238.0, 255.0])
     };
     let strength = if dark { 0.42 } else { 0.55 };
     let base_alpha = match (see_through, dark) {
@@ -570,6 +551,15 @@ fn aurora_image_at(dark: bool, see_through: bool, t: Option<f32>, lean: egui::Ve
         (true, true) => 0.70,
         (true, false) => 0.72,
     };
+    (base_a, base_b, strength, base_alpha)
+}
+
+/// The size the aurora picture is designed at (its aspect ratio matters).
+const AURORA_SIZE: egui::Vec2 = vec2(192.0, 120.0);
+
+fn paint_aurora(dark: bool, see_through: bool, blobs: &[Blob]) -> egui::ColorImage {
+    let (w, h) = (AURORA_SIZE.x as usize, AURORA_SIZE.y as usize);
+    let (base_a, base_b, strength, base_alpha) = aurora_look(dark, see_through);
     let mut px = Vec::with_capacity(w * h);
     for y in 0..h {
         for x in 0..w {
@@ -581,10 +571,7 @@ fn aurora_image_at(dark: bool, see_through: bool, t: Option<f32>, lean: egui::Ve
                 c[i] = base_a[i] + (base_b[i] - base_a[i]) * k;
             }
             let mut alpha = base_alpha;
-            for (i, &(bx, by, r, col)) in blobs.iter().enumerate() {
-                let (ox, oy, grow) = t.map(|t| drift(i, t)).unwrap_or((0.0, 0.0, 1.0));
-                let depth = PARALLAX_DEPTH[i % PARALLAX_DEPTH.len()] * PARALLAX_REACH * 2.0;
-                let (bx, by, r) = (bx + ox + lean.x * depth, by + oy + lean.y * depth, r * grow);
+            for &(bx, by, r, col) in blobs {
                 let d = (((fx - bx) * 1.6).powi(2) + (fy - by).powi(2)).sqrt();
                 let a = (1.0 - d / r).clamp(0.0, 1.0).powf(1.8) * strength;
                 for i in 0..3 {
@@ -605,74 +592,239 @@ pub fn background(p: &Painter, area: Rect, pal: &Pal, see_through: bool) -> Back
     let st = see_through && vibrant();
     let key = format!("aurora-{}-{}", pal.dark, st);
     let tex = cached_tex(p.ctx(), &key, || aurora_image(pal.dark, st));
-    let bd = Backdrop::cover(tex, area, vec2(192.0, 120.0));
+    let bd = Backdrop::cover(tex, area, AURORA_SIZE);
     bd.paint(p);
     bd
+}
+
+/// A tiny random generator (SplitMix64): enough for scattering blobs.
+struct Rng(u64);
+
+impl Rng {
+    fn next(&mut self) -> f32 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^= z >> 31;
+        (z >> 40) as f32 / (1u64 << 24) as f32
+    }
+
+    fn range(&mut self, a: f32, b: f32) -> f32 {
+        a + (b - a) * self.next()
+    }
+}
+
+/// How far a home-screen blob wanders from its place (fraction of the
+/// picture), how much it grows and shrinks, and how far it reacts to the
+/// pointer when that is at an edge of the window.
+const WANDER_REACH: f32 = 0.30;
+const WANDER_BREATH: f32 = 0.15;
+const LEAN_REACH: f32 = 0.144;
+
+/// How one home-screen blob wanders, drawn at random once per launch.
+#[derive(Clone)]
+struct Wander {
+    /// Where it hovers around.
+    home: (f32, f32),
+    radius: f32,
+    /// Which of the palette's colours it wears.
+    colour: usize,
+    /// Three slow waves per axis (x, then y): weight, period (s), phase.
+    waves: [(f32, f32, f32); 6],
+    /// Growing and shrinking: period (s) and phase.
+    breath: (f32, f32),
+    /// How strongly it reacts to the pointer; below zero it shies away.
+    depth: f32,
+    /// How far its reaction is turned from the pointer's direction (rad).
+    turn: f32,
+    /// How long it takes to react (time constant, s).
+    ease: f32,
+}
+
+/// Five blobs scattered over the picture: each place is the best of a few
+/// random tries (the one furthest from the blobs already placed), so they
+/// spread out without forming a pattern. Colours, sizes and every rhythm
+/// are random too.
+fn scatter(seed: u64, dark: bool) -> Vec<Wander> {
+    use std::f32::consts::{PI, TAU};
+    let mut rng = Rng(seed);
+    let rest = rest_blobs(dark);
+    let mut colours: Vec<usize> = (0..rest.len()).collect();
+    for i in (1..colours.len()).rev() {
+        let j = (rng.next() * (i + 1) as f32) as usize % (i + 1);
+        colours.swap(i, j);
+    }
+    let mut placed: Vec<(f32, f32)> = Vec::new();
+    let mut out = Vec::new();
+    for &colour in &colours {
+        let mut best = (0.5, 0.5);
+        let mut best_gap = -1.0;
+        for _ in 0..12 {
+            let c = (rng.range(0.0, 1.0), rng.range(0.0, 1.0));
+            let gap = placed
+                .iter()
+                .map(|p| (((c.0 - p.0) * 1.6).powi(2) + (c.1 - p.1).powi(2)).sqrt())
+                .fold(f32::MAX, f32::min);
+            if gap > best_gap {
+                best = c;
+                best_gap = gap;
+            }
+        }
+        placed.push(best);
+        let mut waves = [(0.0, 0.0, 0.0); 6];
+        for axis in 0..2 {
+            let weights = [rng.range(0.2, 1.0), rng.range(0.2, 1.0), rng.range(0.2, 1.0)];
+            let sum: f32 = weights.iter().sum();
+            for k in 0..3 {
+                waves[axis * 3 + k] = (weights[k] / sum, rng.range(35.0, 120.0), rng.range(0.0, TAU));
+            }
+        }
+        let shy = rng.next() < 0.3;
+        out.push(Wander {
+            home: best,
+            radius: rest[colour].2 * rng.range(0.8, 1.2),
+            colour,
+            waves,
+            breath: (rng.range(30.0, 80.0), rng.range(0.0, TAU)),
+            depth: rng.range(0.7, 1.8) * if shy { -0.7 } else { 1.0 },
+            turn: rng.range(-PI / 3.0, PI / 3.0),
+            ease: rng.range(0.3, 1.2),
+        });
+    }
+    out
+}
+
+/// Where a wandering blob is at `t` seconds, leaning by `lean` (its own
+/// eased copy of the pointer's offset from the centre, -0.5–0.5 per axis).
+fn wandered(w: &Wander, dark: bool, t: f32, lean: egui::Vec2) -> Blob {
+    use std::f32::consts::TAU;
+    let wave = |k: usize| {
+        let (weight, period, phase) = w.waves[k];
+        weight * (TAU * t / period + phase).sin()
+    };
+    let dx: f32 = (0..3).map(wave).sum();
+    let dy: f32 = (3..6).map(wave).sum();
+    let (sin, cos) = w.turn.sin_cos();
+    let lean = vec2(lean.x * cos - lean.y * sin, lean.x * sin + lean.y * cos) * w.depth * LEAN_REACH * 2.0;
+    let grow = 1.0 + WANDER_BREATH * (TAU * t / w.breath.0 + w.breath.1).sin();
+    let colour = rest_blobs(dark)[w.colour].3;
+    (w.home.0 + WANDER_REACH * dx + lean.x, w.home.1 + WANDER_REACH * dy + lean.y, w.radius * grow, colour)
+}
+
+/// Draws the aurora straight onto `area` as meshes (no picture): the
+/// gradient as one quad and every blob as rings of vertices whose colour
+/// fades out like the picture's blobs. Moving it costs next to nothing, so
+/// the home screen can animate it smoothly.
+fn paint_aurora_mesh(p: &Painter, area: Rect, dark: bool, see_through: bool, blobs: &[Blob]) {
+    use std::f32::consts::TAU;
+    /// Rings per blob and points per ring.
+    const RINGS: usize = 12;
+    const SEGMENTS: usize = 48;
+    let (base_a, base_b, strength, base_alpha) = aurora_look(dark, see_through);
+    // the same cropping as the picture gets when it covers the area
+    let uv = Backdrop::cover(TextureId::default(), area, AURORA_SIZE).uv;
+    let to_area = |fx: f32, fy: f32| {
+        pos2(area.min.x + (fx - uv.min.x) / uv.width() * area.width(), area.min.y + (fy - uv.min.y) / uv.height() * area.height())
+    };
+    let base_at = |q: egui::Pos2| {
+        let fx = uv.min.x + (q.x - area.min.x) / area.width() * uv.width();
+        let fy = uv.min.y + (q.y - area.min.y) / area.height() * uv.height();
+        let k = (fx + fy) / 2.0;
+        let c = |i: usize| (base_a[i] + (base_b[i] - base_a[i]) * k) as u8;
+        Color32::from_rgba_unmultiplied(c(0), c(1), c(2), (base_alpha * 255.0) as u8)
+    };
+    let mut mesh = egui::Mesh::default();
+    // the gradient is linear, so a quad with the corners' colours is exact
+    for q in [area.left_top(), area.right_top(), area.right_bottom(), area.left_bottom()] {
+        mesh.colored_vertex(q, base_at(q));
+    }
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(0, 2, 3);
+    // a blob's radius is a fraction of the picture's height
+    let unit = area.height() / uv.height();
+    for &(bx, by, r, col) in blobs {
+        let centre = to_area(bx, by);
+        let radius = r * unit;
+        let colour = |t: f32| {
+            let a = (1.0 - t).clamp(0.0, 1.0).powf(1.8) * strength;
+            Color32::from_rgba_unmultiplied(col[0] as u8, col[1] as u8, col[2] as u8, (a * 255.0).round() as u8)
+        };
+        let first = mesh.vertices.len() as u32;
+        mesh.colored_vertex(centre, colour(0.0));
+        for ring in 1..=RINGS {
+            let t = ring as f32 / RINGS as f32;
+            let c = colour(t);
+            for s in 0..SEGMENTS {
+                let ang = s as f32 / SEGMENTS as f32 * TAU;
+                mesh.colored_vertex(centre + vec2(ang.cos(), ang.sin()) * radius * t, c);
+            }
+        }
+        let at = |ring: usize, s: usize| first + 1 + ((ring - 1) * SEGMENTS + s % SEGMENTS) as u32;
+        for s in 0..SEGMENTS {
+            mesh.add_triangle(first, at(1, s), at(1, s + 1));
+        }
+        for ring in 1..RINGS {
+            for s in 0..SEGMENTS {
+                mesh.add_triangle(at(ring, s), at(ring + 1, s), at(ring + 1, s + 1));
+                mesh.add_triangle(at(ring, s), at(ring + 1, s + 1), at(ring, s + 1));
+            }
+        }
+    }
+    p.add(egui::Shape::mesh(mesh));
 }
 
 /// State of the home screen's living aurora.
 #[derive(Clone)]
 struct Drift {
-    tex: egui::TextureHandle,
+    blobs: Vec<Wander>,
+    /// Each blob's lean towards the pointer now (each eases at its pace).
+    leans: Vec<egui::Vec2>,
     /// The drift's own clock (s): it only runs while the window is in front.
     clock: f64,
-    /// When the picture was last redrawn.
-    drawn_at: f64,
     /// When the state was last looked at.
     seen_at: f64,
-    /// How far the blobs lean towards the pointer now (eases to the target).
-    lean: egui::Vec2,
 }
 
-/// The aurora with its colour blobs drifting slowly, like bubbles, and
-/// leaning gently towards the pointer (for the home screen). While `moving`
-/// the drift redraws the picture about 4 times a second, and more often only
-/// while the blobs follow the pointer; otherwise it stays exactly where it is
-/// and costs nothing. Its clock carries on from there without a jump.
-pub fn background_drifting(p: &Painter, area: Rect, pal: &Pal, see_through: bool, moving: bool) -> Backdrop {
-    /// Seconds between drift frames, and while following the pointer.
-    const DRIFT_FRAME: f64 = 1.0 / 4.0;
-    const FOLLOW_FRAME: f64 = 1.0 / 30.0;
-    /// How quickly the lean catches up with the pointer (time constant, s).
-    const FOLLOW_EASE: f32 = 0.6;
+/// The aurora with its colour blobs scattered at random and wandering
+/// slowly, like bubbles, each also reacting to the pointer in its own way
+/// (for the home screen). The blobs are drawn as meshes, so while `moving`
+/// they glide smoothly at about 30 frames a second for little cost;
+/// otherwise they stay exactly where they are and nothing is redrawn. The
+/// drift's clock carries on from there without a jump.
+pub fn background_drifting(p: &Painter, area: Rect, pal: &Pal, see_through: bool, moving: bool) {
+    const FRAME: f64 = 1.0 / 30.0;
     let ctx = p.ctx();
     let st = see_through && vibrant();
-    let id = egui::Id::new(("aurora-drift", pal.dark, st));
+    let id = egui::Id::new(("aurora-drift", pal.dark));
     let now = ctx.input(|i| i.time);
     let target = ctx
         .input(|i| i.pointer.hover_pos())
         .filter(|_| moving)
         .map(|q| vec2((q.x - area.center().x) / area.width(), (q.y - area.center().y) / area.height()).clamp(vec2(-0.5, -0.5), vec2(0.5, 0.5)));
-    let mut d = match ctx.data_mut(|m| m.get_temp::<Drift>(id)) {
-        Some(d) => d,
-        None => {
-            let tex = ctx.load_texture("aurora-drift", aurora_image_at(pal.dark, st, Some(0.0), egui::Vec2::ZERO), egui::TextureOptions::LINEAR);
-            Drift { tex, clock: 0.0, drawn_at: now, seen_at: now, lean: egui::Vec2::ZERO }
-        }
-    };
+    let mut d = ctx.data_mut(|m| m.get_temp::<Drift>(id)).unwrap_or_else(|| {
+        // a new scatter every launch
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|t| t.as_nanos() as u64).unwrap_or(7);
+        let blobs = scatter(seed, pal.dark);
+        let leans = vec![egui::Vec2::ZERO; blobs.len()];
+        Drift { blobs, leans, clock: 0.0, seen_at: now }
+    });
     // a long pause (hidden, in the background) does not count
-    let dt = (now - d.seen_at).clamp(0.0, 0.25);
+    let dt = (now - d.seen_at).clamp(0.0, 0.1);
     d.seen_at = now;
-    let mut following = false;
     if moving {
         d.clock += dt;
         if let Some(target) = target {
-            let k = 1.0 - (-(dt as f32) / FOLLOW_EASE).exp();
-            d.lean += (target - d.lean) * k;
-            following = (target - d.lean).length() > 0.002;
+            for (w, lean) in d.blobs.iter().zip(d.leans.iter_mut()) {
+                let k = 1.0 - (-(dt as f32) / w.ease).exp();
+                *lean += (target - *lean) * k;
+            }
         }
-        let due = if following { FOLLOW_FRAME } else { DRIFT_FRAME };
-        if now - d.drawn_at >= due {
-            d.tex.set(aurora_image_at(pal.dark, st, Some(d.clock as f32), d.lean), egui::TextureOptions::LINEAR);
-            d.drawn_at = now;
-        }
-        ctx.request_repaint_after(std::time::Duration::from_secs_f64(if following { FOLLOW_FRAME } else { DRIFT_FRAME }));
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(FRAME));
     }
-    let tex = d.tex.id();
+    let blobs: Vec<Blob> = d.blobs.iter().zip(&d.leans).map(|(w, l)| wandered(w, pal.dark, d.clock as f32, *l)).collect();
+    paint_aurora_mesh(p, area, pal.dark, st, &blobs);
     ctx.data_mut(|m| m.insert_temp(id, d));
-    let bd = Backdrop::cover(tex, area, vec2(192.0, 120.0));
-    bd.paint(p);
-    bd
 }
 
 /// Rounded sections ("cards") for the settings forms. Shapes are reserved
