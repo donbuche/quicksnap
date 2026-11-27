@@ -4,6 +4,8 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-27
+
 ### Added
 - ⌘W hides the window and QuickSnap keeps running in the menu bar; ⌘Q asks
   "Quit QuickSnap?" first and, if confirmed, quits completely (the menu-bar icon goes
@@ -156,7 +158,8 @@ No changes in the app itself; this version is about how it is released.
 First version: area, frozen-area, full-screen and delayed captures, screen recording,
 annotation editor, menu-bar app, global hotkeys and an English/Spanish/Catalan interface.
 
-[Unreleased]: https://github.com/donbuche/quicksnap/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/donbuche/quicksnap/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/donbuche/quicksnap/compare/v0.5.2...v1.0.0
 [0.5.2]: https://github.com/donbuche/quicksnap/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/donbuche/quicksnap/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/donbuche/quicksnap/compare/v0.4.0...v0.5.0
