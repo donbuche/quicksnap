@@ -90,6 +90,8 @@ pub struct App {
     started: bool,
     /// Set by Quit; otherwise closing the main window only hides it.
     quitting: bool,
+    /// ⌘Q was pressed: the "Quit QuickSnap?" box is up.
+    confirm_quit: bool,
     /// The main window is hidden (closed to the menu bar, or out of the way
     /// of a capture).
     hidden: bool,
@@ -97,7 +99,7 @@ pub struct App {
     /// back when it ends.
     restore_after_capture: bool,
     /// For checking layouts: draw one view in the main window
-    /// (QUICKSNAP_VIEW=home or prefs-general / prefs-advanced / ...).
+    /// (QUICKSNAP_VIEW=home, quit or prefs-general / prefs-advanced / ...).
     view: Option<String>,
     applied_theme: Option<theme::ThemeChoice>,
     /// The language the menu-bar menu was built in.
@@ -291,6 +293,7 @@ impl App {
             screenshot: screenshot.map(|p| ScreenshotJob { path: p, frame: 0, requested: false }),
             started: false,
             quitting: false,
+            confirm_quit: false,
             hidden: false,
             restore_after_capture: false,
             view: std::env::var("QUICKSNAP_VIEW").ok(),
@@ -424,6 +427,70 @@ impl App {
         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
         ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+    }
+
+    /// ⌘W: the main window goes away but QuickSnap keeps running in the
+    /// menu bar (as closing it with the red button).
+    fn hide_main(&mut self, ctx: &Context) {
+        self.hidden = true;
+        self.restore_after_capture = false;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+    }
+
+    /// ⌘Q: asks before quitting for good (the main window comes forward to
+    /// show the question).
+    fn ask_quit(&mut self, ctx: &Context) {
+        self.confirm_quit = true;
+        self.show_main(ctx);
+    }
+
+    /// The "Quit QuickSnap?" box over the main window.
+    fn confirm_quit_box(&mut self, ctx: &Context) {
+        if !self.confirm_quit {
+            return;
+        }
+        let mut quit = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+        let logo = self.logo(ctx);
+        // roomy, like the About box: a generous margin inside, air between
+        // the lines, and opaque so the window behind does not show through
+        let pal = theme::pal(ctx);
+        let fill = if pal.dark { Color32::from_rgb(32, 27, 54) } else { Color32::from_rgb(252, 251, 255) };
+        let frame = Frame::popup(&ctx.style()).fill(fill).inner_margin(Margin::symmetric(40, 32)).corner_radius(16.0);
+        let modal = egui::Modal::new(egui::Id::new("confirm_quit")).frame(frame).show(ctx, |ui| {
+            ui.set_width(340.0);
+            ui.spacing_mut().item_spacing = vec2(12.0, 6.0);
+            ui.vertical_centered(|ui| {
+                ui.add(egui::Image::new(&logo).fit_to_exact_size(vec2(64.0, 64.0)));
+                ui.add_space(16.0);
+                ui.label(RichText::new(t("Quit QuickSnap?")).size(20.0).strong());
+                ui.add_space(10.0);
+                ui.label(
+                    RichText::new(t("QuickSnap will close completely and its menu-bar icon will disappear. Global shortcuts will stop working."))
+                        .size(13.5)
+                        .line_height(Some(20.0))
+                        .color(pal.hint),
+                );
+                ui.add_space(28.0);
+                // two buttons of the same size, side by side, centred
+                let size = vec2(130.0, 32.0);
+                let w = size.x * 2.0 + ui.spacing().item_spacing.x;
+                ui.allocate_ui_with_layout(vec2(w, size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    if ui.add(egui::Button::new(t("Cancel")).min_size(size).corner_radius(8.0)).clicked() {
+                        self.confirm_quit = false;
+                    }
+                    if theme::gradient_button(ui, t("Quit"), size).clicked() {
+                        quit = true;
+                    }
+                });
+            });
+        });
+        if modal.should_close() {
+            self.confirm_quit = false;
+        }
+        if quit {
+            self.confirm_quit = false;
+            self.run(ctx, Command::Quit);
+        }
     }
 
     fn run(&mut self, ctx: &Context, cmd: Command) {
@@ -1006,13 +1073,20 @@ impl App {
                 .with_minimize_button(false),
             |vctx, _class| {
                 let ch = prefs.show(vctx, settings);
-                if vctx.input(|i| i.viewport().close_requested()) {
+                let (close, quit) = vctx.input_mut(|i| {
+                    (i.consume_key(egui::Modifiers::COMMAND, egui::Key::W), i.consume_key(egui::Modifiers::COMMAND, egui::Key::Q))
+                });
+                if close || quit || vctx.input(|i| i.viewport().close_requested()) {
                     prefs.open = false;
                     prefs.recording = None;
                 }
-                ch
+                (ch, quit)
             },
         );
+        let (ch, quit) = ch;
+        if quit {
+            self.ask_quit(ctx);
+        }
         if ch.hotkeys {
             if let Some(k) = &mut self.keys {
                 k.apply(&self.settings.hotkeys);
@@ -1200,9 +1274,30 @@ impl eframe::App for App {
         if self.screenshot.is_none() && ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Comma)) {
             self.run(ctx, Command::Preferences);
         }
+        // There is no app menu (menu-bar app), so ⌘W and ⌘Q are handled here:
+        // ⌘W hides the window and QuickSnap stays in the menu bar; ⌘Q asks
+        // before quitting for good.
+        if self.screenshot.is_none() {
+            let (close, quit) = ctx.input_mut(|i| {
+                (i.consume_key(egui::Modifiers::COMMAND, egui::Key::W), i.consume_key(egui::Modifiers::COMMAND, egui::Key::Q))
+            });
+            if quit {
+                self.ask_quit(ctx);
+            } else if close && !self.confirm_quit {
+                if self.tray.is_some() {
+                    self.hide_main(ctx);
+                } else {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            }
+        }
         self.handle_messages(ctx);
 
         if let Some(v) = self.view.clone() {
+            // quit: the "Quit QuickSnap?" box over the home screen
+            if v == "quit" {
+                self.confirm_quit = true;
+            }
             if let Some(tab) = v.strip_prefix("prefs-") {
                 self.prefs.tab = match tab {
                     "advanced" => settings_ui::Tab::Advanced,
@@ -1234,6 +1329,7 @@ impl eframe::App for App {
         self.overlay_window(ctx);
         self.selector_window(ctx);
         self.toasts_ui(ctx);
+        self.confirm_quit_box(ctx);
         // no click while a capture overlay is up
         if self.overlay.is_none() && self.selector.is_none() {
             crate::sound::click_feedback(ctx, self.settings.click_sound);

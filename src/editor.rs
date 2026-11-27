@@ -1159,7 +1159,15 @@ impl Editor {
                 _ if over.is_some() && over == self.selected => egui::CursorIcon::Grab,
                 _ => egui::CursorIcon::Crosshair,
             };
-            ctx.set_cursor_icon(if self.moving { egui::CursorIcon::Grabbing } else { icon });
+            let icon = if self.moving { egui::CursorIcon::Grabbing } else { icon };
+            // over the red-yellow-green window buttons: the plain arrow
+            let over_buttons = theme::over_window_buttons(hp);
+            ctx.set_cursor_icon(if over_buttons { egui::CursorIcon::Default } else { icon });
+            // pressing on the picture (draw, place a text, select, move,
+            // reshape, crop…) clicks like the buttons do
+            if !over_buttons && s.click_sound && ctx.input(|i| i.pointer.primary_pressed()) {
+                crate::sound::click();
+            }
         }
 
         if resp.double_clicked() {

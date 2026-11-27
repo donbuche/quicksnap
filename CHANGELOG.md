@@ -4,6 +4,17 @@ All notable changes to QuickSnap. Versions follow [Semantic Versioning](https://
 
 ## [Unreleased]
 
+### Added
+- ⌘W hides the window and QuickSnap keeps running in the menu bar; ⌘Q asks
+  "Quit QuickSnap?" first and, if confirmed, quits completely (the menu-bar icon goes
+  away). Both also work in the Preferences window (⌘W closes it)
+- Editor: pressing on the picture (drawing a shape, placing a text, selecting, moving,
+  cropping…) plays the click sound too, when the click sound is on
+
+### Fixed
+- Editor: over the red-yellow-green window buttons the pointer is the normal arrow,
+  not the drawing crosshair
+
 ## [0.5.2] - 2026-11-18
 
 ### Changed
