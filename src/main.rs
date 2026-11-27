@@ -73,11 +73,15 @@ fn main() -> eframe::Result<()> {
             .with_title_shown(false),
         event_loop_builder: Some(Box::new(|_builder| {
             // Live in the menu bar only: no Dock icon, no app menu. Closing the
-            // window just hides it; Quit is in the menu-bar icon's menu.
+            // window (or ⌘W) just hides it; Quit is in the menu-bar icon's menu
+            // and ⌘Q (after asking).
             #[cfg(target_os = "macos")]
             {
                 use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
                 _builder.with_activation_policy(ActivationPolicy::Accessory);
+                // no hidden default menu: its Quit item would catch ⌘Q and
+                // quit at once; the app handles ⌘W and ⌘Q itself
+                _builder.with_default_menu(false);
             }
         })),
         ..Default::default()
