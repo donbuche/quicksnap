@@ -99,7 +99,7 @@ pub struct App {
     /// back when it ends.
     restore_after_capture: bool,
     /// For checking layouts: draw one view in the main window
-    /// (QUICKSNAP_VIEW=home or prefs-general / prefs-advanced / ...).
+    /// (QUICKSNAP_VIEW=home, quit or prefs-general / prefs-advanced / ...).
     view: Option<String>,
     applied_theme: Option<theme::ThemeChoice>,
     /// The language the menu-bar menu was built in.
@@ -450,19 +450,38 @@ impl App {
             return;
         }
         let mut quit = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
-        let modal = egui::Modal::new(egui::Id::new("confirm_quit")).show(ctx, |ui| {
-            ui.set_width(320.0);
-            ui.heading(t("Quit QuickSnap?"));
-            ui.add_space(4.0);
-            ui.label(t("QuickSnap will close completely and its menu-bar icon will disappear. Global shortcuts will stop working."));
-            ui.add_space(12.0);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if theme::gradient_button(ui, t("Quit"), vec2(90.0, 28.0)).clicked() {
-                    quit = true;
-                }
-                if ui.button(t("Cancel")).clicked() {
-                    self.confirm_quit = false;
-                }
+        let logo = self.logo(ctx);
+        // roomy, like the About box: a generous margin inside, air between
+        // the lines, and opaque so the window behind does not show through
+        let pal = theme::pal(ctx);
+        let fill = if pal.dark { Color32::from_rgb(32, 27, 54) } else { Color32::from_rgb(252, 251, 255) };
+        let frame = Frame::popup(&ctx.style()).fill(fill).inner_margin(Margin::symmetric(40, 32)).corner_radius(16.0);
+        let modal = egui::Modal::new(egui::Id::new("confirm_quit")).frame(frame).show(ctx, |ui| {
+            ui.set_width(340.0);
+            ui.spacing_mut().item_spacing = vec2(12.0, 6.0);
+            ui.vertical_centered(|ui| {
+                ui.add(egui::Image::new(&logo).fit_to_exact_size(vec2(64.0, 64.0)));
+                ui.add_space(16.0);
+                ui.label(RichText::new(t("Quit QuickSnap?")).size(20.0).strong());
+                ui.add_space(10.0);
+                ui.label(
+                    RichText::new(t("QuickSnap will close completely and its menu-bar icon will disappear. Global shortcuts will stop working."))
+                        .size(13.5)
+                        .line_height(Some(20.0))
+                        .color(pal.hint),
+                );
+                ui.add_space(28.0);
+                // two buttons of the same size, side by side, centred
+                let size = vec2(130.0, 32.0);
+                let w = size.x * 2.0 + ui.spacing().item_spacing.x;
+                ui.allocate_ui_with_layout(vec2(w, size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    if ui.add(egui::Button::new(t("Cancel")).min_size(size).corner_radius(8.0)).clicked() {
+                        self.confirm_quit = false;
+                    }
+                    if theme::gradient_button(ui, t("Quit"), size).clicked() {
+                        quit = true;
+                    }
+                });
             });
         });
         if modal.should_close() {
@@ -1275,6 +1294,10 @@ impl eframe::App for App {
         self.handle_messages(ctx);
 
         if let Some(v) = self.view.clone() {
+            // quit: the "Quit QuickSnap?" box over the home screen
+            if v == "quit" {
+                self.confirm_quit = true;
+            }
             if let Some(tab) = v.strip_prefix("prefs-") {
                 self.prefs.tab = match tab {
                     "advanced" => settings_ui::Tab::Advanced,
