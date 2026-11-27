@@ -109,6 +109,13 @@ pub const DARK: Pal = Pal {
 /// top, so nothing clickable may sit in this band.
 pub const TITLEBAR: f32 = if cfg!(target_os = "macos") { 28.0 } else { 0.0 };
 
+/// Whether `p` (window points) is over the red-yellow-green window buttons in
+/// the main window's top-left corner: the pointer there is the plain arrow
+/// and pressing does not draw.
+pub fn over_window_buttons(p: egui::Pos2) -> bool {
+    cfg!(target_os = "macos") && p.x >= 0.0 && p.x < 80.0 && p.y >= 0.0 && p.y < TITLEBAR
+}
+
 /// Whether the main window is see-through, with the desktop showing blurred
 /// behind it (macOS vibrancy). Without it the aurora is painted opaque.
 static VIBRANT: AtomicBool = AtomicBool::new(false);
